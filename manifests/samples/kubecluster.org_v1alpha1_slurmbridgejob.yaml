@@ -1,0 +1,12 @@
+apiVersion: kubecluster.org.kubecluster.org/v1alpha1
+kind: SlurmBridgeJob
+metadata:
+  labels:
+    app.kubernetes.io/name: slurmbridgejob
+    app.kubernetes.io/instance: slurmbridgejob-sample
+    app.kubernetes.io/part-of: slurm-bridge-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: slurm-bridge-operator
+  name: slurmbridgejob-sample
+spec:
+  # TODO(user): Add fields here
