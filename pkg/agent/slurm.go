@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package agent
 
 import (
 	"context"
@@ -35,41 +35,44 @@ import (
 
 const localFilePrefix = "local.file"
 
-type (
-	// Slurm implements WorkloadManagerServer.
-	Slurm struct {
-		uid    int64
-		cfg    Config
-		client *slurm.Client
-	}
+// Slurm implements WorkloadManagerServer.
+type Slurm struct {
+	uid    int64
+	cfg    Config
+	client *slurm.Client
+}
 
-	// Config is a red-box configuration for each partition available.
-	Config map[string]PartitionResources
+// Config is a red-box configuration for each partition available.
+type Config map[string]PartitionResources
 
-	// PartitionResources configure how red-box will see slurm partition resources.
-	// In auto mode red-box will attempt to query partition resources from slurm, but
-	// administrator can set up them manually.
-	PartitionResources struct {
-		AutoNodes      bool `yaml:"auto_nodes"`
-		AutoCPUPerNode bool `yaml:"auto_cpu_per_node"`
-		AutoMemPerNode bool `yaml:"auto_mem_per_node"`
-		AutoWallTime   bool `yaml:"auto_wall_time"`
+// PartitionResources configure how red-box will see slurm partition resources.
+// In auto mode red-box will attempt to query partition resources from slurm, but
+// administrator can set up them manually.
+type PartitionResources struct {
+	AutoNodes      bool `yaml:"auto_nodes"`
+	AutoCPUPerNode bool `yaml:"auto_cpu_per_node"`
+	AutoMemPerNode bool `yaml:"auto_mem_per_node"`
+	AutoWallTime   bool `yaml:"auto_wall_time"`
 
-		Nodes      int64         `yaml:"nodes"`
-		CPUPerNode int64         `yaml:"cpu_per_node"`
-		MemPerNode int64         `yaml:"mem_per_node"`
-		WallTime   time.Duration `yaml:"wall_time"`
+	Nodes      int64         `yaml:"nodes"`
+	CPUPerNode int64         `yaml:"cpu_per_node"`
+	MemPerNode int64         `yaml:"mem_per_node"`
+	WallTime   time.Duration `yaml:"wall_time"`
 
-		AdditionalFeatures []Feature `yaml:"additional_features"`
-	}
+	AdditionalFeatures []Feature `yaml:"additional_features"`
+}
 
-	// Feature represents slurm partition feature.
-	Feature struct {
-		Name     string `yaml:"name"`
-		Version  string `yaml:"version"`
-		Quantity int64  `yaml:"quantity"`
-	}
-)
+// Feature represents slurm partition feature.
+type Feature struct {
+	Name     string `yaml:"name"`
+	Version  string `yaml:"version"`
+	Quantity int64  `yaml:"quantity"`
+}
+
+func (s *Slurm) mustEmbedUnimplementedWorkloadManagerServer() {
+	//TODO implement me
+	panic("implement me")
+}
 
 // NewSlurm creates a new instance of Slurm.
 func NewSlurm(c *slurm.Client, cfg Config) *Slurm {
