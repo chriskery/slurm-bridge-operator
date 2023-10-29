@@ -22,25 +22,20 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var (
-	// ErrAffinityIsNotRequired signalise that affinity for requested resources is not required.
-	ErrAffinityIsNotRequired = errors.New("affinity selectors is not required")
-
-	DefaultNodeSelectors = map[string]string{
-		"type": "virtual-kubelet",
-	}
-
-	PartitionLabel = "kubecluster.org/partition"
-
-	DefaultTolerations = []corev1.Toleration{
-		{
-			Key:      "virtual-kubelet.io/provider",
-			Operator: corev1.TolerationOpEqual,
-			Value:    "slurm",
-			Effect:   corev1.TaintEffectNoSchedule,
-		},
-	}
-)
+// ErrAffinityIsNotRequired signalise that affinity for requested resources is not required.
+var ErrAffinityIsNotRequired = errors.New("affinity selectors is not required")
+var DefaultNodeSelectors = map[string]string{
+	"type": "virtual-kubelet",
+}
+var PartitionLabel = "kubecluster.org/partition"
+var DefaultTolerations = []corev1.Toleration{
+	{
+		Key:      "virtual-kubelet.io/provider",
+		Operator: corev1.TolerationOpEqual,
+		Value:    "slurm",
+		Effect:   corev1.TaintEffectNoSchedule,
+	},
+}
 
 // Resources describes job resources which will be transformed into k8s pod affinity.
 type Resources struct {

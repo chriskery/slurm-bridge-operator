@@ -26,7 +26,7 @@ const (
 	ControllerName = "slurm-bridge-configurator"
 )
 
-func NewConfigurator(mgr manager.Manager, slurmClient workload.WorkloadManagerClient, addr string) *SlurmBridgeConfigurator {
+func NewConfiguratorOrDie(mgr manager.Manager, slurmClient workload.WorkloadManagerClient, addr string) *SlurmBridgeConfigurator {
 	namespace := os.Getenv("NAMESPACE")
 	if len(namespace) == 0 {
 		namespace = "default"
@@ -42,9 +42,14 @@ func NewConfigurator(mgr manager.Manager, slurmClient workload.WorkloadManagerCl
 		SlurmClient:        slurmClient,
 		SlurmAgentEndpoint: addr,
 		VKNodeNamespace:    namespace,
-		VKNodeHostname:     os.Getenv("HOST_NAME"),
+		VKKubeletImage:     os.Getenv("KUBELET_IMAGE"),
+		VKServiceAccount:   os.Getenv("SERVICE_ACCOUNT"),
+		ResultImage:        os.Getenv("RESULTS_IMAGE"),
 	}
 
+	if len(r.VKKubeletImage) == 0 {
+		logrus.Fatalf("slurm virtual kubelet image can not be empty, please set $KUBELET_IMAGE")
+	}
 	cfg := mgr.GetConfig()
 	kubeClientSet := kubeclientset.NewForConfigOrDie(cfg)
 	r.KubeClientSet = kubeClientSet
@@ -79,9 +84,10 @@ type SlurmBridgeConfigurator struct {
 	SlurmAgentEndpoint string
 
 	VKNodeNamespace  string
-	VKNodeHostname   string
 	VKServiceAccount string
 	VKKubeletImage   string
+
+	ResultImage string
 }
 
 func (c *SlurmBridgeConfigurator) WatchPartitions(ctx context.Context, wg *sync.WaitGroup, updateInterval time.Duration) {
@@ -115,7 +121,7 @@ func (c *SlurmBridgeConfigurator) Reconcile(partitionsResp *workload.PartitionsR
 	nodes, err := c.KubeClientSet.CoreV1().Nodes().List(
 		context.Background(),
 		metav1.ListOptions{
-			LabelSelector: "type=virtual-kubelet",
+			LabelSelector: VKNodeLabel,
 		})
 	if err != nil {
 		return errors.Errorf("Can't get virtual nodes %s", err)
@@ -145,7 +151,7 @@ func (c *SlurmBridgeConfigurator) ReconcileCreateNodeForPartition(partitions []s
 	for _, p := range partitions {
 		logrus.Printf("Creating pod for %s partition in %s namespace", p, c.VKNodeNamespace)
 		_, err := c.KubeClientSet.CoreV1().Pods(c.VKNodeNamespace).Create(context.Background(),
-			c.virtualKubeletPodTemplate(p, c.VKNodeHostname), metav1.CreateOptions{})
+			c.virtualKubeletPodTemplate(p), metav1.CreateOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "could not create pod for %s partition", p)
 		}
@@ -156,7 +162,7 @@ func (c *SlurmBridgeConfigurator) ReconcileCreateNodeForPartition(partitions []s
 
 func (c *SlurmBridgeConfigurator) ReconcileDeleteControllingPod(nodes []string) error {
 	for _, n := range nodes {
-		nodeName := partitionNodeName(n, c.VKNodeHostname)
+		nodeName := partitionNodeName(n)
 		logrus.Printf("Deleting pod %s in %s namespace", nodeName, c.VKNodeNamespace)
 		err := c.KubeClientSet.CoreV1().Pods(c.VKNodeNamespace).Delete(context.Background(), nodeName,
 			metav1.DeleteOptions{})
@@ -169,21 +175,21 @@ func (c *SlurmBridgeConfigurator) ReconcileDeleteControllingPod(nodes []string) 
 
 // virtualKubeletPodTemplate returns filled pod model ready to be created in k8s.
 // Kubelet pod will create virtual node that will be responsible for handling Slurm jobs.
-func (c *SlurmBridgeConfigurator) virtualKubeletPodTemplate(partitionName, nodeName string) *v1.Pod {
+func (c *SlurmBridgeConfigurator) virtualKubeletPodTemplate(partitionName string) *v1.Pod {
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: partitionNodeName(partitionName, nodeName),
+			Name: partitionNodeName(partitionName),
 		},
 		Spec: v1.PodSpec{
 			ServiceAccountName: c.VKServiceAccount,
 			Containers: []v1.Container{
 				{
-					Name:            "slurm-partition-vk",
+					Name:            "slurm-virtual-kubelet",
 					Image:           c.VKKubeletImage,
 					ImagePullPolicy: v1.PullAlways,
 					Args: []string{
 						"--nodename",
-						partitionNodeName(partitionName, nodeName),
+						partitionNodeName(partitionName),
 						"--provider",
 						"wlm",
 						"--startup-timeout",
@@ -331,6 +337,6 @@ func contains(s []string, e string) bool {
 }
 
 // partitionNodeName forms partition name that will be used as pod and node name in k8s
-func partitionNodeName(partition, node string) string {
-	return fmt.Sprintf("slurm-%s-%s", node, partition)
+func partitionNodeName(partition string) string {
+	return fmt.Sprintf("slurm-partition-%s", partition)
 }

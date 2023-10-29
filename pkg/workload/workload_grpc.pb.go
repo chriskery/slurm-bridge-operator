@@ -42,6 +42,8 @@ const (
 	WorkloadManager_TailFile_FullMethodName           = "/workload.WorkloadManager/TailFile"
 	WorkloadManager_Resources_FullMethodName          = "/workload.WorkloadManager/Resources"
 	WorkloadManager_Partitions_FullMethodName         = "/workload.WorkloadManager/Partitions"
+	WorkloadManager_Partition_FullMethodName          = "/workload.WorkloadManager/Partition"
+	WorkloadManager_Nodes_FullMethodName              = "/workload.WorkloadManager/Nodes"
 	WorkloadManager_WorkloadInfo_FullMethodName       = "/workload.WorkloadManager/WorkloadInfo"
 )
 
@@ -75,6 +77,10 @@ type WorkloadManagerClient interface {
 	Resources(ctx context.Context, in *ResourcesRequest, opts ...grpc.CallOption) (*ResourcesResponse, error)
 	// Partitions returns a list of available partitions.
 	Partitions(ctx context.Context, in *PartitionsRequest, opts ...grpc.CallOption) (*PartitionsResponse, error)
+	// Partition returns a single of available partitions.
+	Partition(ctx context.Context, in *PartitionRequest, opts ...grpc.CallOption) (*PartitionResponse, error)
+	// Nodes returns a single of available partitions.
+	Nodes(ctx context.Context, in *NodesRequest, opts ...grpc.CallOption) (*NodesResponse, error)
 	// WorkloadInfo provides info about workload (name, version, red-box uid)
 	WorkloadInfo(ctx context.Context, in *WorkloadInfoRequest, opts ...grpc.CallOption) (*WorkloadInfoResponse, error)
 }
@@ -213,6 +219,24 @@ func (c *workloadManagerClient) Partitions(ctx context.Context, in *PartitionsRe
 	return out, nil
 }
 
+func (c *workloadManagerClient) Partition(ctx context.Context, in *PartitionRequest, opts ...grpc.CallOption) (*PartitionResponse, error) {
+	out := new(PartitionResponse)
+	err := c.cc.Invoke(ctx, WorkloadManager_Partition_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workloadManagerClient) Nodes(ctx context.Context, in *NodesRequest, opts ...grpc.CallOption) (*NodesResponse, error) {
+	out := new(NodesResponse)
+	err := c.cc.Invoke(ctx, WorkloadManager_Nodes_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *workloadManagerClient) WorkloadInfo(ctx context.Context, in *WorkloadInfoRequest, opts ...grpc.CallOption) (*WorkloadInfoResponse, error) {
 	out := new(WorkloadInfoResponse)
 	err := c.cc.Invoke(ctx, WorkloadManager_WorkloadInfo_FullMethodName, in, out, opts...)
@@ -252,8 +276,13 @@ type WorkloadManagerServer interface {
 	Resources(context.Context, *ResourcesRequest) (*ResourcesResponse, error)
 	// Partitions returns a list of available partitions.
 	Partitions(context.Context, *PartitionsRequest) (*PartitionsResponse, error)
+	// Partition returns a single of available partitions.
+	Partition(context.Context, *PartitionRequest) (*PartitionResponse, error)
+	// Nodes returns a single of available partitions.
+	Nodes(context.Context, *NodesRequest) (*NodesResponse, error)
 	// WorkloadInfo provides info about workload (name, version, red-box uid)
 	WorkloadInfo(context.Context, *WorkloadInfoRequest) (*WorkloadInfoResponse, error)
+	mustEmbedUnimplementedWorkloadManagerServer()
 }
 
 // UnimplementedWorkloadManagerServer must be embedded to have forward compatible implementations.
@@ -286,6 +315,12 @@ func (UnimplementedWorkloadManagerServer) Resources(context.Context, *ResourcesR
 }
 func (UnimplementedWorkloadManagerServer) Partitions(context.Context, *PartitionsRequest) (*PartitionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Partitions not implemented")
+}
+func (UnimplementedWorkloadManagerServer) Partition(context.Context, *PartitionRequest) (*PartitionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Partition not implemented")
+}
+func (UnimplementedWorkloadManagerServer) Nodes(context.Context, *NodesRequest) (*NodesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Nodes not implemented")
 }
 func (UnimplementedWorkloadManagerServer) WorkloadInfo(context.Context, *WorkloadInfoRequest) (*WorkloadInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WorkloadInfo not implemented")
@@ -476,6 +511,42 @@ func _WorkloadManager_Partitions_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WorkloadManager_Partition_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PartitionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkloadManagerServer).Partition(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkloadManager_Partition_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkloadManagerServer).Partition(ctx, req.(*PartitionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkloadManager_Nodes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NodesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkloadManagerServer).Nodes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkloadManager_Nodes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkloadManagerServer).Nodes(ctx, req.(*NodesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _WorkloadManager_WorkloadInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(WorkloadInfoRequest)
 	if err := dec(in); err != nil {
@@ -528,6 +599,14 @@ var WorkloadManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Partitions",
 			Handler:    _WorkloadManager_Partitions_Handler,
+		},
+		{
+			MethodName: "Partition",
+			Handler:    _WorkloadManager_Partition_Handler,
+		},
+		{
+			MethodName: "Nodes",
+			Handler:    _WorkloadManager_Nodes_Handler,
 		},
 		{
 			MethodName: "WorkloadInfo",

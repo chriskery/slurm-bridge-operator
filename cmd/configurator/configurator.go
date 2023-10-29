@@ -37,12 +37,6 @@ import (
 )
 
 var (
-	serviceAccount = os.Getenv("SERVICE_ACCOUNT")
-	kubeletImage   = os.Getenv("KUBELET_IMAGE")
-	resultsImage   = os.Getenv("RESULTS_IMAGE")
-)
-
-var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
@@ -103,7 +97,7 @@ func main() {
 	}
 	slurmC := workload.NewWorkloadManagerClient(conn)
 
-	cf := configurator.NewConfigurator(mgr, slurmC, addr)
+	cf := configurator.NewConfiguratorOrDie(mgr, slurmC, addr)
 	cf.InitVKServiceAccount()
 
 	ctx, cancel := context.WithCancel(context.Background())

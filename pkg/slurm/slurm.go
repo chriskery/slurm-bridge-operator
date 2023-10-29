@@ -17,6 +17,7 @@ package slurm
 import (
 	"bytes"
 	"github.com/chriskery/slurm-bridge-operator/pkg/common/tail"
+	"github.com/chriskery/slurm-bridge-operator/pkg/workload"
 	"io"
 	"log"
 	"os"
@@ -54,59 +55,57 @@ var (
 	ErrFileNotFound = errors.New("file is not found")
 )
 
-type (
-	// Client implements Slurm interface for communicating with
-	// a local Slurm cluster by calling Slurm binaries directly.
-	Client struct{}
+// Client implements Slurm interface for communicating with
+// a local Slurm cluster by calling Slurm binaries directly.
+type Client struct{}
 
-	// JobInfo contains information about a Slurm job.
-	JobInfo struct {
-		ID         string         `json:"id" slurm:"JobId"`
-		UserID     string         `json:"user_id" slurm:"UserId"`
-		ArrayJobID string         `json:"array_job_id" slurm:"ArrayJobId"`
-		Name       string         `json:"name" slurm:"JobName"`
-		ExitCode   string         `json:"exit_code" slurm:"ExitCode"`
-		State      string         `json:"state" slurm:"JobState"`
-		SubmitTime *time.Time     `json:"submit_time" slurm:"SubmitTime"`
-		StartTime  *time.Time     `json:"start_time" slurm:"StartTime"`
-		RunTime    *time.Duration `json:"run_time" slurm:"RunTime"`
-		TimeLimit  *time.Duration `json:"time_limit" slurm:"TimeLimit"`
-		WorkDir    string         `json:"work_dir" slurm:"WorkDir"`
-		StdOut     string         `json:"std_out" slurm:"StdOut"`
-		StdErr     string         `json:"std_err" slurm:"StdErr"`
-		Partition  string         `json:"partition" slurm:"Partition"`
-		NodeList   string         `json:"node_list" slurm:"NodeList"`
-		BatchHost  string         `json:"batch_host" slurm:"BatchHost"`
-		NumNodes   string         `json:"num_nodes" slurm:"NumNodes"`
-	}
+// JobInfo contains information about a Slurm job.
+type JobInfo struct {
+	ID         string         `json:"id" slurm:"JobId"`
+	UserID     string         `json:"user_id" slurm:"UserId"`
+	ArrayJobID string         `json:"array_job_id" slurm:"ArrayJobId"`
+	Name       string         `json:"name" slurm:"JobName"`
+	ExitCode   string         `json:"exit_code" slurm:"ExitCode"`
+	State      string         `json:"state" slurm:"JobState"`
+	SubmitTime *time.Time     `json:"submit_time" slurm:"SubmitTime"`
+	StartTime  *time.Time     `json:"start_time" slurm:"StartTime"`
+	RunTime    *time.Duration `json:"run_time" slurm:"RunTime"`
+	TimeLimit  *time.Duration `json:"time_limit" slurm:"TimeLimit"`
+	WorkDir    string         `json:"work_dir" slurm:"WorkDir"`
+	StdOut     string         `json:"std_out" slurm:"StdOut"`
+	StdErr     string         `json:"std_err" slurm:"StdErr"`
+	Partition  string         `json:"partition" slurm:"Partition"`
+	NodeList   string         `json:"node_list" slurm:"NodeList"`
+	BatchHost  string         `json:"batch_host" slurm:"BatchHost"`
+	NumNodes   string         `json:"num_nodes" slurm:"NumNodes"`
+}
 
-	// JobStepInfo contains information about a single Slurm job step.
-	JobStepInfo struct {
-		ID         string     `json:"id"`
-		Name       string     `json:"name"`
-		StartedAt  *time.Time `json:"started_at"`
-		FinishedAt *time.Time `json:"finished_at"`
-		ExitCode   int        `json:"exit_code"`
-		State      string     `json:"state"`
-	}
+// JobStepInfo contains information about a single Slurm job step.
+type JobStepInfo struct {
+	ID         string     `json:"id"`
+	Name       string     `json:"name"`
+	StartedAt  *time.Time `json:"started_at"`
+	FinishedAt *time.Time `json:"finished_at"`
+	ExitCode   int        `json:"exit_code"`
+	State      string     `json:"state"`
+}
 
-	// Feature represents a single feature enabled on a Slurm partition.
-	// TODO use it.
-	Feature struct {
-		Name     string
-		Version  string
-		Quantity int64
-	}
+// Feature represents a single feature enabled on a Slurm partition.
+// TODO use it.
+type Feature struct {
+	Name     string
+	Version  string
+	Quantity int64
+}
 
-	// Resources contain a list of available resources on a Slurm partition.
-	Resources struct {
-		Nodes      int64
-		MemPerNode int64
-		CPUPerNode int64
-		WallTime   time.Duration
-		Features   []Feature
-	}
-)
+// Resources contain a list of available resources on a Slurm partition.
+type Resources struct {
+	Nodes      int64
+	MemPerNode int64
+	CPUPerNode int64
+	WallTime   time.Duration
+	Features   []Feature
+}
 
 // NewClient returns new local client.
 func NewClient() (*Client, error) {
@@ -253,6 +252,68 @@ func (*Client) Partitions() ([]string, error) {
 		return nil, errors.Wrap(err, "could not get partition info")
 	}
 	return parsePartitionsNames(string(out)), nil
+}
+
+const (
+	partitionNameF = "PartitionName"
+	nodesF         = "Nodes"
+	cPUTotF        = "CPUTot"
+	cPUAllocF      = "CPUAlloc"
+	realMemoryF    = "RealMemory"
+	allocMemF      = "AllocMem"
+)
+
+// Partition returns a list of partition names.
+func (*Client) Partition(partition string) (*workload.PartitionResponse, error) {
+	cmd := exec.Command(scontrolBinaryName, "show", "partition", partition)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get partition info")
+	}
+	return parsePartition(strings.TrimSpace(string(out))), nil
+}
+
+// Nodes returns a list of nodes names.
+func (*Client) Nodes(partition string) (*workload.NodesResponse, error) {
+	cmd := exec.Command(scontrolBinaryName, "show", "partition", partition)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get partition info")
+	}
+	return parseNodes(strings.TrimSpace(string(out))), nil
+}
+
+func parsePartition(raw string) *workload.PartitionResponse {
+	p := &workload.PartitionResponse{}
+	for _, f := range strings.Fields(raw) {
+		if s := strings.Split(f, "="); len(s) == 2 {
+			switch s[0] {
+			case nodesF:
+				p.Nodes = append(p.Nodes, strings.Split(s[1], ",")...)
+			}
+		}
+	}
+	return p
+}
+
+func parseNodes(raw string) *workload.NodesResponse {
+	p := &workload.NodesResponse{}
+	for _, f := range strings.Fields(raw) {
+		node := &workload.Node{}
+		if s := strings.Split(f, "="); len(s) == 2 {
+			switch s[0] {
+			case cPUTotF:
+				node.Cpus, _ = strconv.ParseInt(s[1], 10, 64)
+			case cPUAllocF:
+				node.AlloCpus, _ = strconv.ParseInt(s[1], 10, 64)
+			case realMemoryF:
+				node.Memory, _ = strconv.ParseInt(s[1], 10, 64)
+			case allocMemF:
+				node.AlloMemory, _ = strconv.ParseInt(s[1], 10, 64)
+			}
+		}
+	}
+	return p
 }
 
 // Version returns slurm version

@@ -49,6 +49,12 @@ service WorkloadManager {
   // Partitions returns a list of available partitions.
   rpc Partitions (PartitionsRequest) returns (PartitionsResponse);
 
+  // Partition returns a single of available partitions.
+  rpc Partition (PartitionRequest) returns (PartitionResponse);
+
+  // Nodes returns a single of available partitions.
+  rpc Nodes (NodesRequest) returns (NodesResponse);
+
   // WorkloadInfo provides info about workload (name, version, red-box uid)
   rpc WorkloadInfo (WorkloadInfoRequest) returns (WorkloadInfoResponse);
 }
@@ -124,6 +130,33 @@ message PartitionsRequest {
 
 message PartitionsResponse {
   repeated string partition = 1;
+}
+
+message NodesRequest {
+  repeated string nodes = 1;
+}
+
+message NodesResponse {
+  repeated Node nodes = 1;
+}
+
+message Node {
+  int64 cpus = 1;
+  int64 memory = 2;
+  int64 gpus = 3;
+  string gpuType = 4;
+
+  int64 alloCpus = 5;
+  int64 alloMemory = 6;
+  int64 alloGpus = 7;
+}
+
+message PartitionRequest {
+  string partition = 1;
+}
+
+message PartitionResponse {
+  repeated string nodes = 1;
 }
 
 message WorkloadInfoRequest {

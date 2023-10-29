@@ -15,6 +15,7 @@
 package slurm
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -128,7 +129,7 @@ func parseResources(partitionInfo string) (*Resources, error) {
 	if maxTime, ok := fMap[maxTime]; ok {
 		d, err := ParseDuration(maxTime[0])
 		if err != nil {
-			if err != ErrDurationIsUnlimited {
+			if !errors.Is(err, ErrDurationIsUnlimited) {
 				return nil, errors.Wrap(err, "could not parse duration")
 			}
 			resources.WallTime = time.Duration(-1)
