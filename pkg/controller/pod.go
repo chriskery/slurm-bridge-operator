@@ -12,7 +12,7 @@ var errAffinityIsNotRequired = errors.New("affinity selectors is not required")
 func (r *SlurmBridgeJobReconciler) newPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*corev1.Pod, error) {
 	affinity, err := affinityForSj(sjb)
 	if err != nil && !errors.Is(err, errAffinityIsNotRequired) {
-		return nil, errors.Wrap(err, "could not form slurm job pod affinity")
+		return nil, errors.Wrap(err, "could not form slurm-agent job pod affinity")
 	}
 
 	return &corev1.Pod{

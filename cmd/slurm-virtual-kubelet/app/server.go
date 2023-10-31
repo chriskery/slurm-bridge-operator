@@ -30,6 +30,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"io"
+	v1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -47,7 +48,7 @@ func init() {
 }
 
 const (
-	componentSlurmVirtualKubelet = "slurm-virtual-kubelet"
+	componentSlurmVirtualKubelet = "slurm-agent-virtual-kubelet"
 )
 
 // NewSlurmVirtualKubeltCommand creates a *cobra.Command object with default parameters
@@ -59,7 +60,7 @@ func NewSlurmVirtualKubeltCommand() *cobra.Command {
 	kubeletConfig, err := options.NewSlurmVirtualKubeletConfiguration()
 	// programmer error
 	if err != nil {
-		klog.ErrorS(err, "Failed to create a new slurm virtual kubelet configuration")
+		klog.ErrorS(err, "Failed to create a new slurm-agent virtual kubelet configuration")
 		os.Exit(1)
 	}
 
@@ -114,6 +115,9 @@ is checked every 20 seconds (also configurable with a flag).`,
 			// short-circuit on verflag
 			verflag.PrintAndExitIfRequested()
 
+			if err := setDefaultSlurmVKFlags(slurmVKFlags); err != nil {
+				return err
+			}
 			// validate the initial SlurmVirtualKubeletFlags
 			if err := options.ValidateKubeletFlags(slurmVKFlags); err != nil {
 				return fmt.Errorf("failed to validate kubelet flags: %w", err)
@@ -175,6 +179,20 @@ is checked every 20 seconds (also configurable with a flag).`,
 	})
 
 	return cmd
+}
+
+func setDefaultSlurmVKFlags(flags *options.SlurmVirtualKubeletFlags) error {
+	hostName, err := nodeutil.GetHostname(flags.NodeName)
+	if err != nil {
+		return err
+	}
+	flags.NodeName = hostName
+
+	flags.NodeLabels["type"] = "virtual-kubelet"
+	flags.NodeLabels["alpha.service-controller.kubernetes.io/exclude-balancer"] = "true"
+	flags.NodeLabels["node.kubernetes.io/exclude-from-external-load-balancers"] = "true"
+	flags.NodeLabels[v1.LabelHostname] = hostName
+	return nil
 }
 
 // newFlagSetWithGlobals constructs a new pflag.FlagSet with global flags registered
@@ -263,12 +281,6 @@ func run(ctx context.Context, s *options.SlurmVirtualKubeletServer) (err error) 
 		standaloneMode = false
 	}
 
-	hostName, err := nodeutil.GetHostname(s.NodeName)
-	if err != nil {
-		return err
-	}
-	s.NodeName = hostName
-
 	// if in standalone mode, indicate as much by setting all clients to nil
 	if standaloneMode {
 		klog.InfoS("Standalone mode, no API client")
@@ -287,7 +299,7 @@ func run(ctx context.Context, s *options.SlurmVirtualKubeletServer) (err error) 
 
 	select {
 	case <-ctx.Done():
-		klog.V(5).InfoS("shutting down for slurm virtual kubelet: ", s.NodeName)
+		klog.V(5).InfoS("shutting down for slurm-agent virtual kubelet: ", s.NodeName)
 		break
 	}
 
@@ -308,7 +320,7 @@ func RunVirtualKubelet(kubeServer *options.SlurmVirtualKubeletServer) error {
 	}
 
 	startVirtualKubelet(vk)
-	klog.InfoS("Started slurm virtual kubelet")
+	klog.InfoS("Started slurm-agent virtual kubelet")
 	return nil
 }
 

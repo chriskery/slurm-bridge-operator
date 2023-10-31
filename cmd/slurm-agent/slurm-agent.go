@@ -16,8 +16,8 @@ package main
 
 import (
 	"flag"
-	sgrpc "github.com/chriskery/slurm-bridge-operator/pkg/agent"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm"
+	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-agent"
+	sgrpc "github.com/chriskery/slurm-bridge-operator/pkg/slurm-agent/api"
 	"github.com/chriskery/slurm-bridge-operator/pkg/workload"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/etcd/client/pkg/v3/fileutil"
@@ -43,9 +43,9 @@ func init() {
 }
 
 func main() {
-	configPath := flag.String("config", "", "path to a slurm-agent config")
-	sock := flag.String("socket", "/var/run/slurm-bridge-operator/slurm-agent.sock", "unix socket to serve slurm API")
-	enableHttp := flag.Bool("enableHttp", true, "http to serve slurm API")
+	configPath := flag.String("config", "", "path to a slurm-agent-agent config")
+	sock := flag.String("socket", "/var/run/slurm-agent-bridge-operator/slurm-agent-agent.sock", "unix socket to serve slurm-agent API")
+	enableHttp := flag.Bool("enableHttp", true, "http to serve slurm-agent API")
 	flag.Parse()
 
 	config, err := config(*configPath)
@@ -93,9 +93,9 @@ func runSignalHandler(wg *sync.WaitGroup, s *grpc.Server) {
 }
 
 func newSlurmClient(config sgrpc.Config) *sgrpc.Slurm {
-	c, err := slurm.NewClient()
+	c, err := slurm_agent.NewClient()
 	if err != nil {
-		logrus.Fatalf("Could not create slurm client: %s", err)
+		logrus.Fatalf("Could not create slurm-agent client: %s", err)
 	}
 	a := sgrpc.NewSlurm(c, config)
 	return a

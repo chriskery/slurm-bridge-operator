@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package slurm
+package slurm_agent
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -34,7 +33,7 @@ const (
 	maxMemPerNode  = "MaxMemPerNode"
 )
 
-// ParseDuration parses slurm duration string. Possible formats are:
+// ParseDuration parses slurm-agent duration string. Possible formats are:
 // minutes, minutes:seconds, hours:minutes:seconds, days-hours, days-hours:minutes or days-hours:minutes:seconds
 func ParseDuration(duration string) (*time.Duration, error) {
 	if duration == unlimited || duration == "" {
@@ -266,4 +265,44 @@ func parseTime(timeStr string) (*time.Time, error) {
 	}
 
 	return &t, nil
+}
+
+const (
+	nodesF      = "Nodes"
+	cPUTotF     = "CPUTot"
+	cPUAllocF   = "CPUAlloc"
+	realMemoryF = "RealMemory"
+	allocMemF   = "AllocMem"
+)
+
+func parsePartition(raw string) *Partition {
+	p := &Partition{}
+	for _, f := range strings.Fields(raw) {
+		if s := strings.Split(f, "="); len(s) == 2 {
+			switch s[0] {
+			case nodesF:
+				p.Nodes = append(p.Nodes, strings.Split(s[1], ",")...)
+			}
+		}
+	}
+	return p
+}
+
+func parseNode(raw string) Node {
+	node := Node{}
+	for _, f := range strings.Fields(raw) {
+		if s := strings.Split(f, "="); len(s) == 2 {
+			switch s[0] {
+			case cPUTotF:
+				node.Cpus, _ = strconv.ParseInt(s[1], 10, 64)
+			case cPUAllocF:
+				node.AlloCpus, _ = strconv.ParseInt(s[1], 10, 64)
+			case realMemoryF:
+				node.Memory, _ = strconv.ParseInt(s[1], 10, 64)
+			case allocMemF:
+				node.AlloMemory, _ = strconv.ParseInt(s[1], 10, 64)
+			}
+		}
+	}
+	return node
 }

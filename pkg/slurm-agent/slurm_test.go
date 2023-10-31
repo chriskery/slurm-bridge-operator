@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package slurm
+package slurm_agent
 
 import (
 	"testing"
@@ -45,9 +45,9 @@ const (
    OverSubscribe=NO Contiguous=0 Licenses=(null) Network=(null)
    Command=(null)
    WorkDir=/home/vagrant
-   StdErr=/home/vagrant/slurm-53.out
+   StdErr=/home/vagrant/slurm-agent-53.out
    StdIn=/dev/null
-   StdOut=/home/vagrant/slurm-53.out
+   StdOut=/home/vagrant/slurm-agent-53.out
    Power=`
 
 	testPendingScontrolRsponse = `JobId=52 JobName=sbatch
@@ -72,9 +72,9 @@ const (
    OverSubscribe=NO Contiguous=0 Licenses=(null) Network=(null)
    Command=(null)
    WorkDir=/home/vagrant
-   StdErr=/home/vagrant/slurm-52.out
+   StdErr=/home/vagrant/slurm-agent-52.out
    StdIn=/dev/null
-   StdOut=/home/vagrant/slurm-52.out
+   StdOut=/home/vagrant/slurm-agent-52.out
    Power=`
 
 	testJobArrayScontrolResponse = `JobId=192 ArrayJobId=192 ArrayTaskId=5-8 JobName=sbatch
@@ -99,9 +99,9 @@ const (
    OverSubscribe=NO Contiguous=0 Licenses=(null) Network=(null)
    Command=(null)
    WorkDir=/home/vagrant
-   StdErr=/home/vagrant/slurm-192_4294967294.out
+   StdErr=/home/vagrant/slurm-agent-192_4294967294.out
    StdIn=/dev/null
-   StdOut=/home/vagrant/slurm-192_4294967294.out
+   StdOut=/home/vagrant/slurm-agent-192_4294967294.out
    Power=
 
 JobId=196 ArrayJobId=192 ArrayTaskId=4 JobName=sbatch
@@ -127,9 +127,9 @@ JobId=196 ArrayJobId=192 ArrayTaskId=4 JobName=sbatch
    OverSubscribe=NO Contiguous=0 Licenses=(null) Network=(null)
    Command=(null)
    WorkDir=/home/vagrant
-   StdErr=/home/vagrant/slurm-192_4.out
+   StdErr=/home/vagrant/slurm-agent-192_4.out
    StdIn=/dev/null
-   StdOut=/home/vagrant/slurm-192_4.out
+   StdOut=/home/vagrant/slurm-agent-192_4.out
    Power=`
 
 	testScontrolShowPartition = `
@@ -187,8 +187,8 @@ func TestJobInfoFromScontrolResponse(t *testing.T) {
 					RunTime:    &testRunTime,
 					TimeLimit:  &testLimitTime,
 					WorkDir:    "/home/vagrant",
-					StdOut:     "/home/vagrant/slurm-53.out",
-					StdErr:     "/home/vagrant/slurm-53.out",
+					StdOut:     "/home/vagrant/slurm-agent-53.out",
+					StdErr:     "/home/vagrant/slurm-agent-53.out",
 					Partition:  "debug",
 					NodeList:   "vagrant",
 					BatchHost:  "vagrant",
@@ -212,8 +212,8 @@ func TestJobInfoFromScontrolResponse(t *testing.T) {
 					RunTime:    &testZeroRunTime,
 					TimeLimit:  nil,
 					WorkDir:    "/home/vagrant",
-					StdOut:     "/home/vagrant/slurm-52.out",
-					StdErr:     "/home/vagrant/slurm-52.out",
+					StdOut:     "/home/vagrant/slurm-agent-52.out",
+					StdErr:     "/home/vagrant/slurm-agent-52.out",
 					Partition:  "debug",
 					NodeList:   "(null)",
 					BatchHost:  "",
@@ -237,8 +237,8 @@ func TestJobInfoFromScontrolResponse(t *testing.T) {
 					RunTime:    &testRunTime,
 					TimeLimit:  &testLimitTime,
 					WorkDir:    "/home/vagrant",
-					StdOut:     "/home/vagrant/slurm-192_4294967294.out",
-					StdErr:     "/home/vagrant/slurm-192_4294967294.out",
+					StdOut:     "/home/vagrant/slurm-agent-192_4294967294.out",
+					StdErr:     "/home/vagrant/slurm-agent-192_4294967294.out",
 					Partition:  "debug",
 					NodeList:   "(null)",
 					BatchHost:  "",
@@ -256,8 +256,8 @@ func TestJobInfoFromScontrolResponse(t *testing.T) {
 					RunTime:    &testRunTime,
 					TimeLimit:  &testLimitTime,
 					WorkDir:    "/home/vagrant",
-					StdOut:     "/home/vagrant/slurm-192_4.out",
-					StdErr:     "/home/vagrant/slurm-192_4.out",
+					StdOut:     "/home/vagrant/slurm-agent-192_4.out",
+					StdErr:     "/home/vagrant/slurm-agent-192_4.out",
 					Partition:  "debug",
 					NodeList:   "vagrant",
 					BatchHost:  "vagrant",

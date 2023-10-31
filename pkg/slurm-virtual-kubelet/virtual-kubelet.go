@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	netutils "k8s.io/utils/net"
 	"net"
@@ -36,12 +37,11 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"os"
-	"path"
 	"strings"
 )
 
 // PreInitRuntimeService will init runtime service before RunKubelet.
-func PreInitRuntimeService(kubeCfg *apis.SlurmVirtualKubeletConfiguration) error {
+func PreInitRuntimeService(_ *apis.SlurmVirtualKubeletConfiguration) error {
 	return nil
 }
 
@@ -91,9 +91,23 @@ func NewSlurmVirtualKubelet(kubeletServer *options.SlurmVirtualKubeletServer, cl
 		return nil, errors.New("kubelet server can not be empty")
 	}
 	if len(kubeletServer.AgentEndpoint) == 0 {
-		return nil, errors.New("slurm agent endpoint can not be empty")
+		return nil, errors.New("slurm-agent agent endpoint can not be empty")
 	}
 	svk := &SlurmVirtualKubelet{KubeletServer: *kubeletServer, Client: client}
+
+	// construct a node reference used for events
+	nodeRef := &v1.ObjectReference{
+		Kind:      "Node",
+		Name:      svk.KubeletServer.NodeName,
+		UID:       types.UID(svk.KubeletServer.NodeName),
+		Namespace: "",
+	}
+	svk.nodeRef = nodeRef
+
+	eb := record.NewBroadcaster()
+	eb.StartLogging(log.G(context.Background()).Infof)
+	eb.StartRecordingToSink(&corev1client.EventSinkImpl{Interface: client.CoreV1().Events(kubeletServer.KubeNamespace)})
+	svk.recorder = eb.NewRecorder(scheme.Scheme, v1.EventSource{Component: "slurm-agent-virtual-controller"})
 
 	addr := kubeletServer.AgentEndpoint
 	if strings.HasSuffix(addr, "sock") {
@@ -127,6 +141,9 @@ type SlurmVirtualKubelet struct {
 
 func (vk *SlurmVirtualKubelet) ListenAndServeSlurmVirtualKubeletServer() {
 	address := netutils.ParseIPSloppy(vk.KubeletServer.Address)
+	if address == nil {
+		address = net.IP{}
+	}
 	port := uint(vk.KubeletServer.Port)
 	klog.InfoS("Starting to listen", "address", address, "port", port)
 	handler := http.NewServeMux()
@@ -187,10 +204,9 @@ func loadTLSConfig(certPath, keyPath string) (*tls.Config, error) {
 	}
 
 	return &tls.Config{
-		Certificates:             []tls.Certificate{cert},
-		MinVersion:               tls.VersionTLS12,
-		PreferServerCipherSuites: true,
-		CipherSuites:             AcceptedCiphers,
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+		CipherSuites: AcceptedCiphers,
 	}, nil
 }
 
@@ -233,15 +249,11 @@ func (vk *SlurmVirtualKubelet) Run() {
 		os.Exit(1)
 	}
 
-	eb := record.NewBroadcaster()
-	eb.StartLogging(log.G(context.Background()).Infof)
-	eb.StartRecordingToSink(&corev1client.EventSinkImpl{Interface: vk.Client.CoreV1().Events(vk.KubeletServer.KubeNamespace)})
-
 	pNode := vk.NewNodeOrDie()
 	pc, err := node.NewPodController(node.PodControllerConfig{
 		PodClient:         vk.Client.CoreV1(),
 		PodInformer:       podInformer,
-		EventRecorder:     eb.NewRecorder(scheme.Scheme, v1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),
+		EventRecorder:     vk.recorder,
 		Provider:          vk.Provider,
 		SecretInformer:    secretInformer,
 		ConfigMapInformer: configMapInformer,

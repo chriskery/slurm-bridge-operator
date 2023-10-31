@@ -44,7 +44,7 @@ import (
 )
 
 const (
-	ControllerName = "slurm-bridge-operator"
+	ControllerName = "slurm-agent-bridge-operator"
 )
 
 func NewReconciler(mgr manager.Manager) *SlurmBridgeJobReconciler {
@@ -111,7 +111,7 @@ func (r *SlurmBridgeJobReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	sjb := &v1alpha1.SlurmBridgeJob{}
 	err := r.Get(ctx, req.NamespacedName, sjb)
 	if err != nil {
-		logger.Info(err.Error(), "unable to fetch slurm bridge job", req.NamespacedName.String())
+		logger.Info(err.Error(), "unable to fetch slurm-agent bridge job", req.NamespacedName.String())
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -203,7 +203,7 @@ func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJob(sjb *v1alpha1.SlurmBr
 		// Translate SlurmJob to Pod
 		sjPod, err := r.newPodForSJ(sjb)
 		if err != nil {
-			logrus.Errorf("Could not translate slurm job into pod: %v", err)
+			logrus.Errorf("Could not translate slurm-agent job into pod: %v", err)
 			return err
 		}
 
@@ -213,7 +213,7 @@ func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJob(sjb *v1alpha1.SlurmBr
 			logrus.Errorf("Could not set controller reference for pod: %v", err)
 			return err
 		}
-		logrus.Infof("Creating new pod %q for slurm job %q", sjPod.Name, sjb.Name)
+		logrus.Infof("Creating new pod %q for slurm-agent job %q", sjPod.Name, sjb.Name)
 		err = r.Create(context.Background(), sjPod)
 		if err != nil {
 			logrus.Errorf("Could not create new pod: %v", err)
@@ -222,7 +222,7 @@ func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJob(sjb *v1alpha1.SlurmBr
 		return nil
 	}
 
-	logrus.Infof("Updating slurm job %q", sjb.Name)
+	logrus.Infof("Updating slurm-agent job %q", sjb.Name)
 	// Otherwise smth has changed, need to update things
 	annotations := sjCurrentPod.GetAnnotations()
 	jobId, exists := annotations[common.SlurmBridgeJobIdAnnotation]
@@ -236,7 +236,7 @@ func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJob(sjb *v1alpha1.SlurmBr
 
 	err = r.Client.Status().Update(context.Background(), sjb)
 	if err != nil {
-		logrus.Errorf("Could not update slurm job: %v", err)
+		logrus.Errorf("Could not update slurm-agent job: %v", err)
 		return err
 	}
 	return nil

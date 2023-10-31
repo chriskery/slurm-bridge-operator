@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	ControllerName = "slurm-bridge-configurator"
+	ControllerName = "slurm-agent-bridge-configurator"
 )
 
 func NewConfiguratorOrDie(mgr manager.Manager, slurmClient workload.WorkloadManagerClient, addr string) *SlurmBridgeConfigurator {
@@ -48,7 +48,7 @@ func NewConfiguratorOrDie(mgr manager.Manager, slurmClient workload.WorkloadMana
 	}
 
 	if len(r.VKKubeletImage) == 0 {
-		logrus.Fatalf("slurm virtual kubelet image can not be empty, please set $KUBELET_IMAGE")
+		logrus.Fatalf("slurm-agent virtual kubelet image can not be empty, please set $KUBELET_IMAGE")
 	}
 	cfg := mgr.GetConfig()
 	kubeClientSet := kubeclientset.NewForConfigOrDie(cfg)
@@ -57,7 +57,7 @@ func NewConfiguratorOrDie(mgr manager.Manager, slurmClient workload.WorkloadMana
 	return r
 }
 
-// SlurmBridgeConfigurator reconciles a for slurm partitions object
+// SlurmBridgeConfigurator reconciles a for slurm-agent partitions object
 type SlurmBridgeConfigurator struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -184,7 +184,7 @@ func (c *SlurmBridgeConfigurator) virtualKubeletPodTemplate(partitionName string
 			ServiceAccountName: c.VKServiceAccount,
 			Containers: []v1.Container{
 				{
-					Name:            "slurm-virtual-kubelet",
+					Name:            "slurm-agent-virtual-kubelet",
 					Image:           c.VKKubeletImage,
 					ImagePullPolicy: v1.PullAlways,
 					Args: []string{
@@ -300,7 +300,7 @@ func (c *SlurmBridgeConfigurator) InitVKServiceAccount() {
 
 }
 
-// partitionNames extracts slurm partition name from k8s node labels
+// partitionNames extracts slurm-agent partition name from k8s node labels
 func partitionNames(nodes []v1.Node) []string {
 	names := make([]string, 0)
 	for _, n := range nodes {
@@ -338,5 +338,5 @@ func contains(s []string, e string) bool {
 
 // partitionNodeName forms partition name that will be used as pod and node name in k8s
 func partitionNodeName(partition string) string {
-	return fmt.Sprintf("slurm-partition-%s", partition)
+	return fmt.Sprintf("slurm-agent-partition-%s", partition)
 }

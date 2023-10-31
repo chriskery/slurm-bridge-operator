@@ -17,14 +17,14 @@ package controller
 import (
 	"bufio"
 	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm"
+	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-agent"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
 )
 
-// extractBatchResources extracts resources that should be satisfied for a slurm
+// extractBatchResources extracts resources that should be satisfied for a slurm-agent
 // job to run. More particularly, the following SBATCH directives are parsed:
 // nodes, time, mem, ntasks and/or (n)tasks-per-node.
 // A zero value is returned if corresponding value is not provided.
@@ -83,8 +83,8 @@ const (
 func applySbatchParam(res v1alpha1.Resources, param, value string) (v1alpha1.Resources, error) {
 	switch param {
 	case timeLimit, timeLimitShort:
-		duration, err := slurm.ParseDuration(value)
-		if err != nil && !errors.Is(err, slurm.ErrDurationIsUnlimited) {
+		duration, err := slurm_agent.ParseDuration(value)
+		if err != nil && !errors.Is(err, slurm_agent.ErrDurationIsUnlimited) {
 			return v1alpha1.Resources{}, errors.Wrapf(err, "could not parse time limit")
 		}
 		if duration != nil {

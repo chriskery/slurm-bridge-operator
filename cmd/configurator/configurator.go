@@ -59,8 +59,8 @@ func main() {
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.IntVar(&controllerThreads, "controller-threads", 1, "Number of worker threads used by the controller.")
 	flag.DurationVar(&updateInterval, "update-interval", 30*time.Second, "how often configurator checks state")
-	flag.StringVar(&agentHttpEndpoint, "endpoint", ":9999", "http endpoint for slurm agent")
-	flag.StringVar(&agentSock, "sock", "", "path to slurm agent socket")
+	flag.StringVar(&agentHttpEndpoint, "endpoint", ":9999", "http endpoint for slurm-agent agent")
+	flag.StringVar(&agentSock, "sock", "", "path to slurm-agent agent socket")
 
 	opts := zap.Options{
 		Development: true,

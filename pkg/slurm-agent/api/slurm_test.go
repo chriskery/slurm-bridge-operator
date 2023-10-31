@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package agent
+package api
 
 import (
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm"
+	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-agent"
 	"github.com/chriskery/slurm-bridge-operator/pkg/workload"
 	"testing"
 	"time"
@@ -24,7 +24,7 @@ import (
 )
 
 func Test_mapSInfoToProtoInfo(t *testing.T) {
-	testInfo := slurm.JobInfo{
+	testInfo := slurm_agent.JobInfo{
 		ID:         "1",
 		UserID:     "vagrant",
 		Name:       "test.job",
@@ -43,7 +43,7 @@ func Test_mapSInfoToProtoInfo(t *testing.T) {
 		NumNodes:   "2",
 		ArrayJobID: "111",
 	}
-	pinfs, err := mapSInfoToProtoInfo([]*slurm.JobInfo{&testInfo})
+	pinfs, err := mapSInfoToProtoInfo([]*slurm_agent.JobInfo{&testInfo})
 	require.NoError(t, err)
 	require.Len(t, pinfs, 1)
 	pi := pinfs[0]
@@ -70,7 +70,7 @@ func Test_mapSInfoToProtoInfo(t *testing.T) {
 }
 
 func Test_mapSStepsToProtoSteps(t *testing.T) {
-	var steps = []*slurm.JobStepInfo{
+	var steps = []*slurm_agent.JobStepInfo{
 		{
 			ID:         "1",
 			Name:       "job1",

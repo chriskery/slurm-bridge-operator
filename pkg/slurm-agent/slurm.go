@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package slurm
+package slurm_agent
 
 import (
 	"bytes"
 	"github.com/chriskery/slurm-bridge-operator/pkg/common/tail"
-	"github.com/chriskery/slurm-bridge-operator/pkg/workload"
 	"io"
 	"log"
 	"os"
@@ -61,23 +60,23 @@ type Client struct{}
 
 // JobInfo contains information about a Slurm job.
 type JobInfo struct {
-	ID         string         `json:"id" slurm:"JobId"`
-	UserID     string         `json:"user_id" slurm:"UserId"`
-	ArrayJobID string         `json:"array_job_id" slurm:"ArrayJobId"`
-	Name       string         `json:"name" slurm:"JobName"`
-	ExitCode   string         `json:"exit_code" slurm:"ExitCode"`
-	State      string         `json:"state" slurm:"JobState"`
-	SubmitTime *time.Time     `json:"submit_time" slurm:"SubmitTime"`
-	StartTime  *time.Time     `json:"start_time" slurm:"StartTime"`
-	RunTime    *time.Duration `json:"run_time" slurm:"RunTime"`
-	TimeLimit  *time.Duration `json:"time_limit" slurm:"TimeLimit"`
-	WorkDir    string         `json:"work_dir" slurm:"WorkDir"`
-	StdOut     string         `json:"std_out" slurm:"StdOut"`
-	StdErr     string         `json:"std_err" slurm:"StdErr"`
-	Partition  string         `json:"partition" slurm:"Partition"`
-	NodeList   string         `json:"node_list" slurm:"NodeList"`
-	BatchHost  string         `json:"batch_host" slurm:"BatchHost"`
-	NumNodes   string         `json:"num_nodes" slurm:"NumNodes"`
+	ID         string         `json:"id" slurm-agent:"JobId"`
+	UserID     string         `json:"user_id" slurm-agent:"UserId"`
+	ArrayJobID string         `json:"array_job_id" slurm-agent:"ArrayJobId"`
+	Name       string         `json:"name" slurm-agent:"JobName"`
+	ExitCode   string         `json:"exit_code" slurm-agent:"ExitCode"`
+	State      string         `json:"state" slurm-agent:"JobState"`
+	SubmitTime *time.Time     `json:"submit_time" slurm-agent:"SubmitTime"`
+	StartTime  *time.Time     `json:"start_time" slurm-agent:"StartTime"`
+	RunTime    *time.Duration `json:"run_time" slurm-agent:"RunTime"`
+	TimeLimit  *time.Duration `json:"time_limit" slurm-agent:"TimeLimit"`
+	WorkDir    string         `json:"work_dir" slurm-agent:"WorkDir"`
+	StdOut     string         `json:"std_out" slurm-agent:"StdOut"`
+	StdErr     string         `json:"std_err" slurm-agent:"StdErr"`
+	Partition  string         `json:"partition" slurm-agent:"Partition"`
+	NodeList   string         `json:"node_list" slurm-agent:"NodeList"`
+	BatchHost  string         `json:"batch_host" slurm-agent:"BatchHost"`
+	NumNodes   string         `json:"num_nodes" slurm-agent:"NumNodes"`
 }
 
 // JobStepInfo contains information about a single Slurm job step.
@@ -107,6 +106,22 @@ type Resources struct {
 	Features   []Feature
 }
 
+// Node contain a list of available resources on a Slurm partition.
+type Node struct {
+	Cpus       int64  `json:"cpus,omitempty"`
+	Memory     int64  `json:"memory,omitempty"`
+	Gpus       int64  `json:"gpus,omitempty"`
+	GpuType    string `json:"gpuType,omitempty"`
+	AlloCpus   int64  `json:"alloCpus,omitempty"`
+	AlloMemory int64  `json:"alloMemory,omitempty"`
+	AlloGpus   int64  `json:"alloGpus,omitempty"`
+}
+
+// Partition contain a list of available resources on a Slurm partition.
+type Partition struct {
+	Nodes []string `json:"nodes,omitempty"`
+}
+
 // NewClient returns new local client.
 func NewClient() (*Client, error) {
 	var missing []string
@@ -123,7 +138,7 @@ func NewClient() (*Client, error) {
 		}
 	}
 	if len(missing) != 0 {
-		return nil, errors.Errorf("no slurm binaries found: %s", strings.Join(missing, ", "))
+		return nil, errors.Errorf("no slurm-agent binaries found: %s", strings.Join(missing, ", "))
 	}
 	return &Client{}, nil
 }
@@ -184,7 +199,7 @@ func (*Client) Tail(path string) (io.ReadCloser, error) {
 	return tr, nil
 }
 
-// SJobInfo returns information about a particular slurm job by ID.
+// SJobInfo returns information about a particular slurm-agent job by ID.
 func (*Client) SJobInfo(jobID int64) ([]*JobInfo, error) {
 	cmd := exec.Command(scontrolBinaryName, "show", "jobid", strconv.FormatInt(jobID, 10))
 
@@ -213,7 +228,8 @@ func (*Client) SJobSteps(jobID int64) ([]*JobStepInfo, error) {
 
 	out, err := cmd.Output()
 	if err != nil {
-		ee, ok := err.(*exec.ExitError)
+		var ee *exec.ExitError
+		ok := errors.As(err, &ee)
 		if ok {
 			return nil, errors.Wrapf(err, "failed to execute sacct: %s", ee.Stderr)
 		}
@@ -254,17 +270,8 @@ func (*Client) Partitions() ([]string, error) {
 	return parsePartitionsNames(string(out)), nil
 }
 
-const (
-	partitionNameF = "PartitionName"
-	nodesF         = "Nodes"
-	cPUTotF        = "CPUTot"
-	cPUAllocF      = "CPUAlloc"
-	realMemoryF    = "RealMemory"
-	allocMemF      = "AllocMem"
-)
-
 // Partition returns a list of partition names.
-func (*Client) Partition(partition string) (*workload.PartitionResponse, error) {
+func (*Client) Partition(partition string) (*Partition, error) {
 	cmd := exec.Command(scontrolBinaryName, "show", "partition", partition)
 	out, err := cmd.Output()
 	if err != nil {
@@ -274,54 +281,34 @@ func (*Client) Partition(partition string) (*workload.PartitionResponse, error) 
 }
 
 // Nodes returns a list of nodes names.
-func (*Client) Nodes(partition string) (*workload.NodesResponse, error) {
-	cmd := exec.Command(scontrolBinaryName, "show", "partition", partition)
+func (*Client) Nodes(nodeNames []string) ([]Node, error) {
+	if len(nodeNames) == 0 {
+		return []Node{}, nil
+	}
+	cmd := exec.Command(scontrolBinaryName, "show", "nodes", strings.Join(nodeNames, ","))
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get partition info")
 	}
-	return parseNodes(strings.TrimSpace(string(out))), nil
-}
 
-func parsePartition(raw string) *workload.PartitionResponse {
-	p := &workload.PartitionResponse{}
-	for _, f := range strings.Fields(raw) {
-		if s := strings.Split(f, "="); len(s) == 2 {
-			switch s[0] {
-			case nodesF:
-				p.Nodes = append(p.Nodes, strings.Split(s[1], ",")...)
-			}
+	var nodes []Node
+	splits := strings.Split(strings.TrimSpace(string(out)), "\n")
+	for _, split := range splits {
+		if len(split) == 0 {
+			continue
 		}
+		node := parseNode(split)
+		nodes = append(nodes, node)
 	}
-	return p
+	return nodes, nil
 }
 
-func parseNodes(raw string) *workload.NodesResponse {
-	p := &workload.NodesResponse{}
-	for _, f := range strings.Fields(raw) {
-		node := &workload.Node{}
-		if s := strings.Split(f, "="); len(s) == 2 {
-			switch s[0] {
-			case cPUTotF:
-				node.Cpus, _ = strconv.ParseInt(s[1], 10, 64)
-			case cPUAllocF:
-				node.AlloCpus, _ = strconv.ParseInt(s[1], 10, 64)
-			case realMemoryF:
-				node.Memory, _ = strconv.ParseInt(s[1], 10, 64)
-			case allocMemF:
-				node.AlloMemory, _ = strconv.ParseInt(s[1], 10, 64)
-			}
-		}
-	}
-	return p
-}
-
-// Version returns slurm version
+// Version returns slurm-agent version
 func (*Client) Version() (string, error) {
 	cmd := exec.Command(sinfoBinaryName, "-V")
 	out, err := cmd.Output()
 	if err != nil {
-		return "", errors.Wrap(err, "could not get slurm info")
+		return "", errors.Wrap(err, "could not get slurm-agent info")
 	}
 
 	s := strings.Split(string(out), " ")
@@ -361,7 +348,7 @@ func jobInfoFromScontrolResponse(jobInfo string) ([]*JobInfo, error) {
 func (ji *JobInfo) fillFromSlurmFields(fields map[string]string) error {
 	t := reflect.TypeOf(*ji)
 	for i := 0; i < t.NumField(); i++ {
-		tagV, ok := t.Field(i).Tag.Lookup("slurm")
+		tagV, ok := t.Field(i).Tag.Lookup("slurm-agent")
 		if !ok {
 			continue
 		}

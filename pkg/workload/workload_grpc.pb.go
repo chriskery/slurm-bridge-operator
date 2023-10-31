@@ -282,7 +282,6 @@ type WorkloadManagerServer interface {
 	Nodes(context.Context, *NodesRequest) (*NodesResponse, error)
 	// WorkloadInfo provides info about workload (name, version, red-box uid)
 	WorkloadInfo(context.Context, *WorkloadInfoRequest) (*WorkloadInfoResponse, error)
-	mustEmbedUnimplementedWorkloadManagerServer()
 }
 
 // UnimplementedWorkloadManagerServer must be embedded to have forward compatible implementations.

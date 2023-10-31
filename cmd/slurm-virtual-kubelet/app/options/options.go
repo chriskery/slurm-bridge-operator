@@ -37,6 +37,7 @@ import (
 	vklabels "github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis/labels"
 	vkvalidation "github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis/validation"
 
+	utilflag "github.com/chriskery/slurm-bridge-operator/pkg/common/flag"
 	"k8s.io/apimachinery/pkg/util/sets"
 	cliflag "k8s.io/component-base/cli/flag"
 )
@@ -97,11 +98,7 @@ type SlurmVirtualKubeletFlags struct {
 // NewSlurmVirtualKubeletFlags will create a new SlurmVirtualKubeletFlags with default values
 func NewSlurmVirtualKubeletFlags() *SlurmVirtualKubeletFlags {
 	slurmVirtualKubeletFlags := &SlurmVirtualKubeletFlags{
-		NodeLabels: map[string]string{
-			"type":               "virtual-kubelet",
-			"kubernetes.io/role": "agent",
-			"alpha.service-controller.kubernetes.io/exclude-balancer": "true",
-		},
+		NodeLabels: map[string]string{},
 	}
 	setDefaultSlurmVirtualKubeletFlags(slurmVirtualKubeletFlags)
 	return slurmVirtualKubeletFlags
@@ -293,6 +290,7 @@ func (f *SlurmVirtualKubeletFlags) AddFlags(mainfs *pflag.FlagSet) {
 	fs.StringVar(&f.KubeConfig, "kubeconfig", f.KubeConfig, "Path to a kubeconfig file, specifying how to connect to the API server. Providing --kubeconfig enables API server mode, omitting --kubeconfig enables standalone mode.")
 	fs.StringVar(&f.NodeName, "hostname-override", f.NodeName, "If non-empty, will use this string as identification instead of the actual hostname. If --cloud-provider is set, the cloud provider determines the name of the node (consult cloud provider documentation to determine if and how the hostname is used).")
 	fs.StringVar(&f.NodeIP, "node-ip", f.NodeIP, "IP address (or comma-separated dual-stack IP addresses) of the node. If unset, kubelet will use the node's default IPv4 address, if any, or its default IPv6 address if it has no IPv4 addresses. You can pass '::' to make it prefer the default IPv6 address rather than the default IPv4 address.")
+	fs.StringVar(&f.AgentEndpoint, "agent-endpoint", f.AgentEndpoint, "slurm-agent agent endpoint addr.")
 }
 
 // AddKubeletConfigFlags adds flags for a specific kubeletconfig.KubeletConfiguration to the specified FlagSet
@@ -336,4 +334,6 @@ func AddKubeletConfigFlags(mainfs *pflag.FlagSet, c *apis.SlurmVirtualKubeletCon
 	fs.Var(cliflag.NewColonSeparatedMultimapStringString(&c.StaticPodURLHeader), "manifest-url-header", "Comma-separated list of HTTP headers to use when accessing the url provided to --manifest-url. Multiple headers with the same name will be added in the same order provided. This flag can be repeatedly invoked. For example: --manifest-url-header 'a:hello,b:again,c:world' --manifest-url-header 'b:beautiful'")
 	fs.Int32Var(&c.Port, "port", c.Port, "The port for the Kubelet to serve on.")
 	fs.Int32Var(&c.ReadOnlyPort, "read-only-port", c.ReadOnlyPort, "The read-only port for the Kubelet to serve on with no authentication/authorization (set to 0 to disable)")
+	fs.Var(&utilflag.IPVar{Val: &c.Address}, "address", "The IP address for the Kubelet to serve on (set to '0.0.0.0' or '::' for listening on all interfaces and IP address families)")
+
 }

@@ -32,7 +32,7 @@ var DefaultTolerations = []corev1.Toleration{
 	{
 		Key:      "virtual-kubelet.io/provider",
 		Operator: corev1.TolerationOpEqual,
-		Value:    "slurm",
+		Value:    "slurm-agent",
 		Effect:   corev1.TaintEffectNoSchedule,
 	},
 }

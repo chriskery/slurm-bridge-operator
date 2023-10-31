@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package agent
+package api
 
 import (
 	"context"
 	"fmt"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm"
+	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-agent"
 	"github.com/chriskery/slurm-bridge-operator/pkg/workload"
 	"io"
 	"log"
@@ -39,14 +39,14 @@ const localFilePrefix = "local.file"
 type Slurm struct {
 	uid    int64
 	cfg    Config
-	client *slurm.Client
+	client *slurm_agent.Client
 }
 
 // Config is a red-box configuration for each partition available.
 type Config map[string]PartitionResources
 
-// PartitionResources configure how red-box will see slurm partition resources.
-// In auto mode red-box will attempt to query partition resources from slurm, but
+// PartitionResources configure how red-box will see slurm-agent partition resources.
+// In auto mode red-box will attempt to query partition resources from slurm-agent, but
 // administrator can set up them manually.
 type PartitionResources struct {
 	AutoNodes      bool `yaml:"auto_nodes"`
@@ -62,7 +62,7 @@ type PartitionResources struct {
 	AdditionalFeatures []Feature `yaml:"additional_features"`
 }
 
-// Feature represents slurm partition feature.
+// Feature represents slurm-agent partition feature.
 type Feature struct {
 	Name     string `yaml:"name"`
 	Version  string `yaml:"version"`
@@ -75,7 +75,7 @@ func (s *Slurm) mustEmbedUnimplementedWorkloadManagerServer() {
 }
 
 // NewSlurm creates a new instance of Slurm.
-func NewSlurm(c *slurm.Client, cfg Config) *Slurm {
+func NewSlurm(c *slurm_agent.Client, cfg Config) *Slurm {
 	return &Slurm{client: c, cfg: cfg, uid: int64(os.Geteuid())}
 }
 
@@ -111,8 +111,36 @@ func (s *Slurm) CancelJob(ctx context.Context, req *workload.CancelJobRequest) (
 	if err := s.client.SCancel(req.JobId); err != nil {
 		return nil, errors.Wrapf(err, "could not cancel job %d", req.JobId)
 	}
-
 	return &workload.CancelJobResponse{}, nil
+}
+
+func (s *Slurm) Partition(ctx context.Context, req *workload.PartitionRequest) (*workload.PartitionResponse, error) {
+	partition, err := s.client.Partition(req.Partition)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not get partition %s info", req.Partition)
+	}
+	return &workload.PartitionResponse{Nodes: partition.Nodes}, nil
+}
+
+func (s *Slurm) Nodes(ctx context.Context, req *workload.NodesRequest) (*workload.NodesResponse, error) {
+	nodes, err := s.client.Nodes(req.Nodes)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not get nodes %s info", req.Nodes)
+	}
+
+	resp := &workload.NodesResponse{}
+	for _, node := range nodes {
+		resp.Nodes = append(resp.Nodes, &workload.Node{
+			Cpus:       node.Cpus,
+			Memory:     node.Memory,
+			Gpus:       node.Gpus,
+			GpuType:    node.GpuType,
+			AlloCpus:   node.AlloCpus,
+			AlloMemory: node.AlloMemory,
+			AlloGpus:   node.AlloGpus,
+		})
+	}
+	return resp, nil
 }
 
 // JobInfo returns information about a job from 'scontrol show jobid'.
@@ -125,7 +153,7 @@ func (s *Slurm) JobInfo(ctx context.Context, req *workload.JobInfoRequest) (*wor
 
 	pInfo, err := mapSInfoToProtoInfo(info)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not convert slurm info into proto info")
+		return nil, errors.Wrap(err, "could not convert slurm-agent info into proto info")
 	}
 
 	if len(pInfo) == 0 {
@@ -145,7 +173,7 @@ func (s *Slurm) JobSteps(ctx context.Context, req *workload.JobStepsRequest) (*w
 
 	pSteps, err := toProtoSteps(steps)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not convert slurm steps into proto steps")
+		return nil, errors.Wrap(err, "could not convert slurm-agent steps into proto steps")
 	}
 
 	return &workload.JobStepsResponse{JobSteps: pSteps}, nil
@@ -241,7 +269,7 @@ func (s *Slurm) TailFile(req workload.WorkloadManager_TailFileServer) error {
 	}
 }
 
-// Resources return available resources on slurm cluster in a requested partition.
+// Resources return available resources on slurm-agent cluster in a requested partition.
 func (s *Slurm) Resources(_ context.Context, req *workload.ResourcesRequest) (*workload.ResourcesResponse, error) {
 	slurmResources, err := s.client.Resources(req.Partition)
 	if err != nil {
@@ -299,11 +327,11 @@ func (s *Slurm) Partitions(context.Context, *workload.PartitionsRequest) (*workl
 
 // WorkloadInfo returns wlm info (name, version, red-box uid)
 func (s *Slurm) WorkloadInfo(context.Context, *workload.WorkloadInfoRequest) (*workload.WorkloadInfoResponse, error) {
-	const wlmName = "slurm"
+	const wlmName = "slurm-agent"
 
 	sVersion, err := s.client.Version()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get slurm version")
+		return nil, errors.Wrap(err, "could not get slurm-agent version")
 	}
 
 	return &workload.WorkloadInfoResponse{
@@ -313,7 +341,7 @@ func (s *Slurm) WorkloadInfo(context.Context, *workload.WorkloadInfoRequest) (*w
 	}, nil
 }
 
-func toProtoSteps(ss []*slurm.JobStepInfo) ([]*workload.JobStepInfo, error) {
+func toProtoSteps(ss []*slurm_agent.JobStepInfo) ([]*workload.JobStepInfo, error) {
 	pSteps := make([]*workload.JobStepInfo, len(ss))
 
 	for i, s := range ss {
@@ -355,7 +383,7 @@ func toProtoSteps(ss []*slurm.JobStepInfo) ([]*workload.JobStepInfo, error) {
 	return pSteps, nil
 }
 
-func mapSInfoToProtoInfo(si []*slurm.JobInfo) ([]*workload.JobInfo, error) {
+func mapSInfoToProtoInfo(si []*slurm_agent.JobInfo) ([]*workload.JobInfo, error) {
 	pInfs := make([]*workload.JobInfo, len(si))
 	for i, inf := range si {
 		var submitTime *timestamp.Timestamp
