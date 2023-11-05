@@ -1,4 +1,4 @@
-apiVersion: kubecluster.org.kubecluster.org/v1alpha1
+apiVersion: kubecluster.org/v1alpha1
 kind: SlurmBridgeJob
 metadata:
   labels:
@@ -9,4 +9,14 @@ metadata:
     app.kubernetes.io/created-by: slurm-agent-bridge-operator
   name: slurmbridgejob-sample
 spec:
-  # TODO(user): Add fields here
+  partition: debug
+  sbatchScript: |
+    #!/bin/sh
+    #SBATCH --nodes=1
+    srun hostname
+    hostname
+    for i in {1..10};do echo $i && sleep 10;done
+    nvidia-smi
+    sleep 100
+#  runAsUser: 1003
+#  runAsGroup: 0

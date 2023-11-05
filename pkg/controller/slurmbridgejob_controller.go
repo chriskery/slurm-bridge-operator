@@ -22,12 +22,14 @@ import (
 	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
 	"github.com/chriskery/slurm-bridge-operator/pkg/common"
 	"github.com/chriskery/slurm-bridge-operator/pkg/common/util"
+	"github.com/chriskery/slurm-bridge-operator/pkg/workload"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -80,17 +82,13 @@ type SlurmBridgeJobReconciler struct {
 	// simultaneously in two different workers.
 	WorkQueue workqueue.RateLimitingInterface
 
-	// Recorder is an event recorder for recording Event resources to the
-	// Kubernetes API.
-	Recorder record.EventRecorder
-
 	// KubeClientSet is a standard kubernetes clientset.
 	KubeClientSet kubeclientset.Interface
 }
 
-//+kubebuilder:rbac:groups=kubecluster.org.kubecluster.org,resources=slurmbridgejobs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=kubecluster.org.kubecluster.org,resources=slurmbridgejobs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=kubecluster.org.kubecluster.org,resources=slurmbridgejobs/finalizers,verbs=update
+//+kubebuilder:rbac:groups=kubecluster.org,resources=slurmbridgejobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=kubecluster.org,resources=slurmbridgejobs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=kubecluster.org,resources=slurmbridgejobs/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;update;list;watch;create;delete
 //+kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch;delete
@@ -116,13 +114,18 @@ func (r *SlurmBridgeJobReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if err = v1alpha1.ValidateV1alphaSlurmBridgeJob(sjb); err != nil {
-		r.Recorder.Eventf(sjb, corev1.EventTypeWarning, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobFailedValidationReason),
+		r.recorder.Eventf(sjb, corev1.EventTypeWarning, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobFailedValidationReason),
 			"SlurmBridgeJob failed validation because %s", err)
 		return ctrl.Result{}, err
 	}
 
 	if sjb.GetDeletionTimestamp() != nil {
 		logger.Info("reconcile cancelled, SlurmBridgeJob has been deleted", "deleted", sjb.GetDeletionTimestamp() != nil)
+		return ctrl.Result{}, nil
+	}
+
+	needReconcile := needReconcileSBJ(sjb)
+	if !needReconcile {
 		return ctrl.Result{}, nil
 	}
 
@@ -136,6 +139,10 @@ func (r *SlurmBridgeJobReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func needReconcileSBJ(sjb *v1alpha1.SlurmBridgeJob) bool {
+	return !(sjb.Status.State == string(corev1.PodSucceeded) || sjb.Status.State == string(corev1.PodFailed))
 }
 
 // onOwnerCreateFunc modify creation condition.
@@ -197,7 +204,10 @@ func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJob(sjb *v1alpha1.SlurmBr
 	if err != nil && errors.IsNotFound(err) {
 		if len(sjb.Status.SubjobStatus) != 0 {
 			logrus.Info("Pod will not be created, it was already created once")
-			return err
+			r.recorder.Eventf(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobFailedReason),
+				"SlurmBridgeJob status change to failed, because pod not found but sub job status not empty")
+			sjb.Status.State = string(corev1.PodFailed)
+			return nil
 		}
 
 		// Translate SlurmJob to Pod
@@ -222,18 +232,47 @@ func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJob(sjb *v1alpha1.SlurmBr
 		return nil
 	}
 
-	logrus.Infof("Updating slurm-agent job %q", sjb.Name)
-	// Otherwise smth has changed, need to update things
-	annotations := sjCurrentPod.GetAnnotations()
-	jobId, exists := annotations[common.SlurmBridgeJobIdAnnotation]
-	if exists {
-		subJobStatus, subJobExist := sjb.Status.SubjobStatus[v1alpha1.SlurmJobId(jobId)]
-		if !subJobExist {
-			subJobStatus = &v1alpha1.SlurmSubjobStatus{}
-		}
-		subJobStatus.ID = jobId
+	if sjb.Status.State != string(sjCurrentPod.Status.Phase) {
+		r.recorder.Eventf(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobStatusChangeReason),
+			"SlurmBridgeJob status change to %s", sjCurrentPod.Status.Phase)
+		sjb.Status.State = string(sjCurrentPod.Status.Phase)
 	}
 
+	// Otherwise smth has changed, need to update things
+	if sjCurrentPod.Status.Message != "" {
+		info := &workload.JobInfoResponse{}
+		err := json.Unmarshal([]byte(sjCurrentPod.Status.Message), info)
+		if err != nil {
+			return err
+		}
+
+		if sjb.Status.SubjobStatus == nil {
+			sjb.Status.SubjobStatus = make(map[v1alpha1.SlurmJobId]*v1alpha1.SlurmSubjobStatus)
+		}
+		for _, jobInfo := range info.Info {
+			sjb.Status.SubjobStatus[v1alpha1.SlurmJobId(jobInfo.Id)] = &v1alpha1.SlurmSubjobStatus{
+				ID:         jobInfo.Id,
+				UserID:     jobInfo.UserId,
+				ArrayJobID: jobInfo.ArrayId,
+				Name:       jobInfo.Name,
+				ExitCode:   jobInfo.ExitCode,
+				State:      jobInfo.Status.String(),
+				SubmitTime: util.GetMetaTimePointer(jobInfo.SubmitTime.AsTime()),
+				StartTime:  util.GetMetaTimePointer(jobInfo.StartTime.AsTime()),
+				RunTime:    jobInfo.RunTime.String(),
+				TimeLimit:  jobInfo.TimeLimit.String(),
+				WorkDir:    jobInfo.WorkingDir,
+				StdOut:     jobInfo.StdErr,
+				StdErr:     jobInfo.StdOut,
+				Partition:  jobInfo.Partition,
+				NodeList:   jobInfo.NodeList,
+				BatchHost:  jobInfo.BatchHost,
+				NumNodes:   jobInfo.NumNodes,
+			}
+		}
+	}
+
+	logrus.Infof("Updating slurm-agent job %q", sjb.Name)
 	err = r.Client.Status().Update(context.Background(), sjb)
 	if err != nil {
 		logrus.Errorf("Could not update slurm-agent job: %v", err)

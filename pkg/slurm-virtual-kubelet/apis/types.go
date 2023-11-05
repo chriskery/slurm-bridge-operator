@@ -8,8 +8,10 @@ import (
 
 // SlurmVirtualKubeletConfiguration contains the configuration for the Kubelet
 type SlurmVirtualKubeletConfiguration struct {
-	metav1.TypeMeta
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
 
+	Pods string
 	// enableServer enables Kubelet's secured server.
 	// Note: Kubelet's insecure port is controlled by the readOnlyPort option.
 	EnableServer bool

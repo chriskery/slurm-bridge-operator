@@ -67,6 +67,8 @@ message SubmitJobRequest {
   // ID of a client who submitted this job.
   string client_id = 3;
   string run_as_user = 4;
+  string run_as_group = 5;
+  string uid = 6;
 }
 
 message SubmitJobResponse {
@@ -222,6 +224,7 @@ enum JobStatus {
   FAILED = 2;
   TIMEOUT = 3;
   PENDING = 4;
+  RUNNING = 5;
 
   UNKNOWN = 10;
 }
@@ -262,6 +265,10 @@ message JobInfo {
   string num_nodes = 16;
   // Job array id.
   string array_id = 17;
+  // Job array id.
+  string reason = 18;
+  // Job time limit.
+  google.protobuf.Timestamp end_time = 19;
 }
 
 // JobStepInfo represents information about a single job step.

@@ -17,6 +17,7 @@ package slurm_agent
 import (
 	"bytes"
 	"github.com/chriskery/slurm-bridge-operator/pkg/common/tail"
+	"golang.org/x/sys/execabs"
 	"io"
 	"log"
 	"os"
@@ -77,6 +78,7 @@ type JobInfo struct {
 	NodeList   string         `json:"node_list" slurm-agent:"NodeList"`
 	BatchHost  string         `json:"batch_host" slurm-agent:"BatchHost"`
 	NumNodes   string         `json:"num_nodes" slurm-agent:"NumNodes"`
+	Reason     string         `json:"reason" slurm-agent:"Reason"`
 }
 
 // JobStepInfo contains information about a single Slurm job step.
@@ -132,7 +134,7 @@ func NewClient() (*Client, error) {
 		scontrolBinaryName,
 		sinfoBinaryName,
 	} {
-		_, err := exec.LookPath(bin)
+		_, err := execabs.LookPath(bin)
 		if err != nil {
 			missing = append(missing, bin)
 		}
@@ -143,14 +145,20 @@ func NewClient() (*Client, error) {
 	return &Client{}, nil
 }
 
+type SbatchRequest struct {
+	// Bash script that will be submitted to a workload manager.
+	Script string `protobuf:"bytes,1,opt,name=script,proto3" json:"script,omitempty"`
+	// Partition where job should be submitted.
+	Partition  string `protobuf:"bytes,2,opt,name=partition,proto3" json:"partition,omitempty"`
+	RunAsUser  string `protobuf:"bytes,4,opt,name=run_as_user,json=runAsUser,proto3" json:"run_as_user,omitempty"`
+	RunAsGroup string `protobuf:"bytes,4,opt,name=run_as_user,json=runAsGroup,proto3" json:"run_as_group,omitempty"`
+}
+
 // SBatch submits batch job and returns job id if succeeded.
-func (*Client) SBatch(script, partition string) (int64, error) {
-	var partitionOpt string
-	if partition != "" {
-		partitionOpt = "--partition=" + partition
-	}
-	cmd := exec.Command(sbatchBinaryName, "--parsable", partitionOpt)
-	cmd.Stdin = bytes.NewBufferString(script)
+func (*Client) SBatch(req *SbatchRequest) (int64, error) {
+	opt := getSbatchOpt(req)
+	cmd := exec.Command(sbatchBinaryName, "--parsable", opt)
+	cmd.Stdin = bytes.NewBufferString(req.Script)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -166,6 +174,20 @@ func (*Client) SBatch(script, partition string) (int64, error) {
 	}
 
 	return int64(id), nil
+}
+
+func getSbatchOpt(req *SbatchRequest) string {
+	var partitionOpt string
+	if req.Partition != "" {
+		partitionOpt = "--partition=" + req.Partition
+	}
+	if req.RunAsUser != "" {
+		partitionOpt = "--uid=" + req.RunAsUser
+	}
+	if req.RunAsGroup != "" {
+		partitionOpt = "--gid=" + req.RunAsGroup
+	}
+	return partitionOpt
 }
 
 // SCancel cancels batch job.
@@ -275,7 +297,7 @@ func (*Client) Partition(partition string) (*Partition, error) {
 	cmd := exec.Command(scontrolBinaryName, "show", "partition", partition)
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get partition info")
+		return nil, errors.Wrapf(err, "could not get partition info,out is : [%s]", out)
 	}
 	return parsePartition(strings.TrimSpace(string(out))), nil
 }
@@ -292,7 +314,7 @@ func (*Client) Nodes(nodeNames []string) ([]Node, error) {
 	}
 
 	var nodes []Node
-	splits := strings.Split(strings.TrimSpace(string(out)), "\n")
+	splits := strings.Split(strings.TrimSpace(string(out)), "\n\n")
 	for _, split := range splits {
 		if len(split) == 0 {
 			continue

@@ -12,7 +12,7 @@ metadata:
   name: slurmbridgejob-viewer-role
 rules:
 - apiGroups:
-  - kubecluster.org.kubecluster.org
+  - kubecluster.org
   resources:
   - slurmbridgejobs
   verbs:
@@ -20,7 +20,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - kubecluster.org.kubecluster.org
+  - kubecluster.org
   resources:
   - slurmbridgejobs/status
   verbs:

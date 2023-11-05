@@ -20,15 +20,14 @@ package options
 import (
 	"fmt"
 	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis"
+	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis/scheme"
 	"github.com/mitchellh/go-homedir"
-	"github.com/pkg/errors"
 	"github.com/virtual-kubelet/virtual-kubelet/errdefs"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	_ "net/http/pprof" // Enable pprof HTTP handlers.
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -72,10 +71,6 @@ type SlurmVirtualKubeletFlags struct {
 	AgentEndpoint  string
 	SlurmPartition string
 
-	TaintKey     string
-	TaintEffect  string
-	DisableTaint bool
-
 	MetricsAddr string
 
 	// Number of workers to use to handle pod notifications
@@ -110,12 +105,8 @@ const (
 	DefaultOperatingSystem      = "Linux"
 	DefaultInformerResyncPeriod = 1 * time.Minute
 	DefaultMetricsAddr          = ":10255"
-	DefaultListenPort           = 10250
 	DefaultPodSyncWorkers       = 10
 	DefaultKubeNamespace        = corev1.NamespaceAll
-
-	DefaultTaintEffect = string(corev1.TaintEffectNoSchedule)
-	DefaultTaintKey    = "virtual-kubelet.io/provider"
 )
 
 func setDefaultSlurmVirtualKubeletFlags(c *SlurmVirtualKubeletFlags) {
@@ -143,13 +134,6 @@ func setDefaultSlurmVirtualKubeletFlags(c *SlurmVirtualKubeletFlags) {
 		c.KubeNamespace = DefaultKubeNamespace
 	}
 
-	if c.TaintKey == "" {
-		c.TaintKey = DefaultTaintKey
-	}
-	if c.TaintEffect == "" {
-		c.TaintEffect = DefaultTaintEffect
-	}
-
 	if c.KubeConfig == "" {
 		c.KubeConfig = os.Getenv("KUBECONFIG")
 		if c.KubeConfig == "" {
@@ -160,6 +144,9 @@ func setDefaultSlurmVirtualKubeletFlags(c *SlurmVirtualKubeletFlags) {
 		}
 	}
 
+	if c.Version == "" {
+		c.Version = "v0.0.1"
+	}
 }
 
 func getEnvOrDefault(key, defaultValue string) string {
@@ -200,6 +187,10 @@ func ValidateKubeletFlags(f *SlurmVirtualKubeletFlags) error {
 	if f.PodSyncWorkers == 0 {
 		return errdefs.InvalidInput("pod sync workers must be greater than 0")
 	}
+
+	if f.SlurmPartition == "" {
+		return errdefs.InvalidInput("slurm partition can not be empty")
+	}
 	return nil
 }
 
@@ -223,27 +214,13 @@ func getLabelNamespace(key string) string {
 
 // NewSlurmVirtualKubeletConfiguration will create a new KubeletConfiguration with default values
 func NewSlurmVirtualKubeletConfiguration() (*apis.SlurmVirtualKubeletConfiguration, error) {
-	config := &apis.SlurmVirtualKubeletConfiguration{}
-	err := setDefaultSlurmVirtualKubeletConfiguration(config)
+	scheme, _, err := scheme.NewSchemeAndCodecs()
 	if err != nil {
 		return nil, err
 	}
+	config := &apis.SlurmVirtualKubeletConfiguration{}
+	scheme.Default(config)
 	return config, nil
-}
-
-func setDefaultSlurmVirtualKubeletConfiguration(c *apis.SlurmVirtualKubeletConfiguration) error {
-	if c.Port == 0 {
-		if kp := os.Getenv("KUBELET_PORT"); kp != "" {
-			p, err := strconv.Atoi(kp)
-			if err != nil {
-				return errors.Wrap(err, "error parsing KUBELET_PORT environment variable")
-			}
-			c.Port = int32(p)
-		} else {
-			c.Port = DefaultListenPort
-		}
-	}
-	return nil
 }
 
 // SlurmVirtualKubeletServer encapsulates all of the parameters necessary for starting up
@@ -291,6 +268,7 @@ func (f *SlurmVirtualKubeletFlags) AddFlags(mainfs *pflag.FlagSet) {
 	fs.StringVar(&f.NodeName, "hostname-override", f.NodeName, "If non-empty, will use this string as identification instead of the actual hostname. If --cloud-provider is set, the cloud provider determines the name of the node (consult cloud provider documentation to determine if and how the hostname is used).")
 	fs.StringVar(&f.NodeIP, "node-ip", f.NodeIP, "IP address (or comma-separated dual-stack IP addresses) of the node. If unset, kubelet will use the node's default IPv4 address, if any, or its default IPv6 address if it has no IPv4 addresses. You can pass '::' to make it prefer the default IPv6 address rather than the default IPv4 address.")
 	fs.StringVar(&f.AgentEndpoint, "agent-endpoint", f.AgentEndpoint, "slurm-agent agent endpoint addr.")
+	fs.StringVar(&f.SlurmPartition, "slurm-partition", f.SlurmPartition, "partition to observe.")
 }
 
 // AddKubeletConfigFlags adds flags for a specific kubeletconfig.KubeletConfiguration to the specified FlagSet
@@ -335,5 +313,4 @@ func AddKubeletConfigFlags(mainfs *pflag.FlagSet, c *apis.SlurmVirtualKubeletCon
 	fs.Int32Var(&c.Port, "port", c.Port, "The port for the Kubelet to serve on.")
 	fs.Int32Var(&c.ReadOnlyPort, "read-only-port", c.ReadOnlyPort, "The read-only port for the Kubelet to serve on with no authentication/authorization (set to 0 to disable)")
 	fs.Var(&utilflag.IPVar{Val: &c.Address}, "address", "The IP address for the Kubelet to serve on (set to '0.0.0.0' or '::' for listening on all interfaces and IP address families)")
-
 }

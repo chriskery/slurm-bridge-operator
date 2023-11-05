@@ -28,6 +28,7 @@ import (
 func (in *SlurmVirtualKubeletConfiguration) DeepCopyInto(out *SlurmVirtualKubeletConfiguration) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	out.SyncFrequency = in.SyncFrequency
 	out.FileCheckFrequency = in.FileCheckFrequency
 	out.HTTPCheckFrequency = in.HTTPCheckFrequency

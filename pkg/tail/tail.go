@@ -192,7 +192,7 @@ func (tail *Tail) reopen() error {
 			if os.IsNotExist(err) {
 				tail.Logger.Printf("Waiting for %s to appear...", tail.Filename)
 				if err := tail.watcher.BlockUntilExists(&tail.Tomb); err != nil {
-					if err == tomb.ErrDying {
+					if errors.Is(err, tomb.ErrDying) {
 						return err
 					}
 					return fmt.Errorf("Failed to detect creation of %s: %s", tail.Filename, err)
@@ -230,7 +230,7 @@ func (tail *Tail) tailFileSync() {
 		// deferred first open.
 		err := tail.reopen()
 		if err != nil {
-			if err != tomb.ErrDying {
+			if !errors.Is(err, tomb.ErrDying) {
 				tail.Kill(err)
 			}
 			return

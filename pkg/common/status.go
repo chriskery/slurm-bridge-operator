@@ -25,13 +25,10 @@ const (
 	// SlurmBridgeJobSuspendedReason is added in a KubeSlurmBridgeJob when it is suspended.
 	SlurmBridgeJobSuspendedReason = "Suspended"
 	// SlurmBridgeJobResumedReason is added in a KubeSlurmBridgeJob when it is unsuspended.
-	SlurmBridgeJobResumedReason = "Resumed"
+	SlurmBridgeJobResumedReason      = "Resumed"
+	SlurmBridgeJobStatusChangeReason = "StatusChanged"
 )
 
 func NewReason(kind, reason string) string {
 	return fmt.Sprintf("%s%s", kind, reason)
 }
-
-const (
-	SlurmBridgeJobIdAnnotation = "kubecluster.org/jobid"
-)

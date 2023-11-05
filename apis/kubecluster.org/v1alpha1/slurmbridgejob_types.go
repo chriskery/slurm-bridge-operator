@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
 const (
@@ -41,12 +40,10 @@ type SlurmBridgeJobSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Partition string `json:"partition"`
-
-	SbatchScript string `json:"sbatch_script"`
-
-	RunAsUser  *int64 `json:"run_as_user"`
-	RunAsGroup *int64 `json:"run_as_group"`
+	Partition    string `json:"partition"`
+	SbatchScript string `json:"sbatchScript"`
+	RunAsUser    *int64 `json:"runAsUser,omitempty"`
+	RunAsGroup   *int64 `json:"runAsGroup,omitempty"`
 }
 
 type SlurmJobId string
@@ -54,29 +51,29 @@ type SlurmJobId string
 type SlurmSubjobStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	ID         string         `json:"id"`
-	UserID     string         `json:"user_id" `
-	ArrayJobID string         `json:"array_job_id"`
-	Name       string         `json:"name"`
-	ExitCode   string         `json:"exit_code"`
-	State      string         `json:"state"`
-	SubmitTime *metav1.Time   `json:"submit_time"`
-	StartTime  *metav1.Time   `json:"start_time"`
-	RunTime    *time.Duration `json:"run_time"`
-	TimeLimit  *time.Duration `json:"time_limit"`
-	WorkDir    string         `json:"work_dir"`
-	StdOut     string         `json:"std_out"`
-	StdErr     string         `json:"std_err"`
-	Partition  string         `json:"partition"`
-	NodeList   string         `json:"node_list"`
-	BatchHost  string         `json:"batch_host"`
-	NumNodes   string         `json:"num_nodes"`
+	ID         string       `json:"id"`
+	UserID     string       `json:"user_id" `
+	ArrayJobID string       `json:"array_job_id"`
+	Name       string       `json:"name"`
+	ExitCode   string       `json:"exit_code"`
+	State      string       `json:"state"`
+	SubmitTime *metav1.Time `json:"submit_time"`
+	StartTime  *metav1.Time `json:"start_time"`
+	RunTime    string       `json:"run_time"`
+	TimeLimit  string       `json:"time_limit"`
+	WorkDir    string       `json:"work_dir"`
+	StdOut     string       `json:"std_out"`
+	StdErr     string       `json:"std_err"`
+	Partition  string       `json:"partition"`
+	NodeList   string       `json:"node_list"`
+	BatchHost  string       `json:"batch_host"`
+	NumNodes   string       `json:"num_nodes"`
 }
 
 // SlurmBridgeJobStatus defines the observed state of SlurmBridgeJob
 type SlurmBridgeJobStatus struct {
 	State        string                            `json:"state"`
-	SubjobStatus map[SlurmJobId]*SlurmSubjobStatus `json:"subjob_status"`
+	SubjobStatus map[SlurmJobId]*SlurmSubjobStatus `json:"subjob_status,omitempty"`
 }
 
 // +genclient

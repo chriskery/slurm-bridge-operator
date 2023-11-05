@@ -107,7 +107,7 @@ func NewSlurmVirtualKubelet(kubeletServer *options.SlurmVirtualKubeletServer, cl
 	eb := record.NewBroadcaster()
 	eb.StartLogging(log.G(context.Background()).Infof)
 	eb.StartRecordingToSink(&corev1client.EventSinkImpl{Interface: client.CoreV1().Events(kubeletServer.KubeNamespace)})
-	svk.recorder = eb.NewRecorder(scheme.Scheme, v1.EventSource{Component: "slurm-agent-virtual-controller"})
+	svk.recorder = eb.NewRecorder(scheme.Scheme, v1.EventSource{Component: "slurm-virtual-node"})
 
 	addr := kubeletServer.AgentEndpoint
 	if strings.HasSuffix(addr, "sock") {
@@ -141,9 +141,6 @@ type SlurmVirtualKubelet struct {
 
 func (vk *SlurmVirtualKubelet) ListenAndServeSlurmVirtualKubeletServer() {
 	address := netutils.ParseIPSloppy(vk.KubeletServer.Address)
-	if address == nil {
-		address = net.IP{}
-	}
 	port := uint(vk.KubeletServer.Port)
 	klog.InfoS("Starting to listen", "address", address, "port", port)
 	handler := http.NewServeMux()
@@ -172,7 +169,7 @@ func (vk *SlurmVirtualKubelet) ListenAndServeSlurmVirtualKubeletServer() {
 		// Passing empty strings as the cert and key files means no
 		// cert/keys are specified and GetCertificate in the TLSConfig
 		// should be called instead.
-		if err := s.ListenAndServeTLS(vk.KubeletServer.TLSCertFile, vk.KubeletServer.TLSPrivateKeyFile); err != nil {
+		if err = s.ListenAndServeTLS(vk.KubeletServer.TLSCertFile, vk.KubeletServer.TLSPrivateKeyFile); err != nil {
 			klog.ErrorS(err, "Failed to listen and serve")
 			os.Exit(1)
 		}
@@ -242,19 +239,22 @@ func (vk *SlurmVirtualKubelet) Run() {
 		klog.ErrorS(err, "could not create resource manager")
 		os.Exit(1)
 	}
-	vk.Provider = NewSlurmVirtualKubeletProvider(rm)
+	vk.Provider = NewSlurmVirtualKubeletProvider(rm, vk)
 
 	if err = options.SetupTracing(&vk.KubeletServer); err != nil {
 		klog.ErrorS(err, "could not setup tracing")
 		os.Exit(1)
 	}
 
-	pNode := vk.NewNodeOrDie()
+	pNode, err := vk.NewNodeOrDie()
+	if err != nil {
+		klog.Fatal(err)
+	}
 	pc, err := node.NewPodController(node.PodControllerConfig{
 		PodClient:         vk.Client.CoreV1(),
 		PodInformer:       podInformer,
 		EventRecorder:     vk.recorder,
-		Provider:          vk.Provider,
+		Provider:          &vk.Provider,
 		SecretInformer:    secretInformer,
 		ConfigMapInformer: configMapInformer,
 		ServiceInformer:   serviceInformer,
@@ -263,12 +263,6 @@ func (vk *SlurmVirtualKubelet) Run() {
 		klog.ErrorS(err, "error setting up pod controller")
 		os.Exit(1)
 	}
-
-	go func() {
-		if err := pc.Run(context.Background(), vk.KubeletServer.PodSyncWorkers); err != nil && !errors.Is(errors.Cause(err), context.Canceled) {
-			klog.Fatal(err)
-		}
-	}()
 
 	if vk.KubeletServer.StartupTimeout > 0 {
 		// If there is a startup timeout, it does two things:
@@ -279,9 +273,9 @@ func (vk *SlurmVirtualKubelet) Run() {
 			klog.Fatal(err)
 		}
 	}
-
+	svkProvider := &SlurmVKNaiveNodeProvider{vk}
 	nodeRunner, err := node.NewNodeController(
-		node.NaiveNodeProvider{},
+		svkProvider,
 		pNode,
 		vk.Client.CoreV1().Nodes(),
 		node.WithNodeStatusUpdateErrorHandler(func(ctx context.Context, err error) error {
@@ -300,11 +294,20 @@ func (vk *SlurmVirtualKubelet) Run() {
 	if err != nil {
 		klog.Fatal(err)
 	}
+
 	go func() {
-		if err := nodeRunner.Run(context.Background()); err != nil {
+		if err = nodeRunner.Run(context.Background()); err != nil {
 			klog.Fatal(err)
 		}
 	}()
+	<-nodeRunner.Ready()
+
+	go func() {
+		if err := pc.Run(context.Background(), vk.KubeletServer.PodSyncWorkers); err != nil && !errors.Is(errors.Cause(err), context.Canceled) {
+			klog.Fatal(err)
+		}
+	}()
+	<-pc.Ready()
 }
 
 func waitFor(time time.Duration, ready <-chan struct{}) error {
@@ -322,6 +325,6 @@ func waitFor(time time.Duration, ready <-chan struct{}) error {
 	}
 }
 
-func NewSlurmVirtualKubeletProvider(rm *manager.ResourceManager) SlurmVirtualKubeletProvider {
-	return SlurmVirtualKubeletProvider{resourceManager: rm}
+func NewSlurmVirtualKubeletProvider(rm *manager.ResourceManager, vk *SlurmVirtualKubelet) SlurmVirtualKubeletProvider {
+	return SlurmVirtualKubeletProvider{resourceManager: rm, vk: vk}
 }

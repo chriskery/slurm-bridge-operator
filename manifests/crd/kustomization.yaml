@@ -2,7 +2,7 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by manifests/default
 resources:
-- bases/kubecluster.org.kubecluster.org_slurmbridgejobs.yaml
+- bases/kubecluster.org_slurmbridgejobs.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patches:

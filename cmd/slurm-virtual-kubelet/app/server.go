@@ -19,7 +19,13 @@ package app
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
+	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
 	"github.com/chriskery/slurm-bridge-operator/cmd/slurm-virtual-kubelet/app/options"
 	utilfs "github.com/chriskery/slurm-bridge-operator/pkg/filesystem"
 	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet"
@@ -29,6 +35,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"go.etcd.io/etcd/client/pkg/v3/fileutil"
 	"io"
 	v1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -39,8 +46,11 @@ import (
 	"k8s.io/component-base/version/verflag"
 	nodeutil "k8s.io/component-helpers/node/util"
 	"k8s.io/klog/v2"
+	"math/big"
+	"net"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func init() {
@@ -188,10 +198,14 @@ func setDefaultSlurmVKFlags(flags *options.SlurmVirtualKubeletFlags) error {
 	}
 	flags.NodeName = hostName
 
-	flags.NodeLabels["type"] = "virtual-kubelet"
+	for labelKey, labelValue := range v1alpha1.DefaultNodeSelectors {
+		flags.NodeLabels[labelKey] = labelValue
+	}
 	flags.NodeLabels["alpha.service-controller.kubernetes.io/exclude-balancer"] = "true"
 	flags.NodeLabels["node.kubernetes.io/exclude-from-external-load-balancers"] = "true"
+	flags.NodeLabels["kubernetes.io/role"] = "slurm-bridge"
 	flags.NodeLabels[v1.LabelHostname] = hostName
+	flags.NodeLabels[v1alpha1.PartitionLabel] = flags.SlurmPartition
 	return nil
 }
 
@@ -328,7 +342,44 @@ func startVirtualKubelet(vk *slurm_virtual_kubelet.SlurmVirtualKubelet) {
 	// start the kubelet
 	go vk.Run()
 
+	if !fileutil.Exist(vk.KubeletServer.TLSCertFile) && !fileutil.Exist(vk.KubeletServer.TLSPrivateKeyFile) {
+		klog.Warningf("TLS cert files not found, generate default tls cert files")
+		tryPrepareTlsCerts(vk)
+	}
 	go vk.ListenAndServeSlurmVirtualKubeletServer()
+}
+
+func tryPrepareTlsCerts(vk *slurm_virtual_kubelet.SlurmVirtualKubelet) {
+	max := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, _ := rand.Int(rand.Reader, max)
+	subject := pkix.Name{
+		Country:            []string{"CN"},
+		Province:           []string{"BeiJing"},
+		Organization:       []string{"kubecluster"},
+		OrganizationalUnit: []string{"sbj"},
+		CommonName:         "slurm virtual kubelet fake certs",
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject:      subject,
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+	}
+
+	pk, _ := rsa.GenerateKey(rand.Reader, 2048)
+
+	derBytes, _ := x509.CreateCertificate(rand.Reader, &template, &template, &pk.PublicKey, pk)
+	certOut, _ := os.Create(vk.KubeletServer.TLSCertFile)
+	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	certOut.Close()
+
+	keyOut, _ := os.Create(vk.KubeletServer.TLSPrivateKeyFile)
+	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(pk)})
+	keyOut.Close()
 }
 
 func createAndInitVirtualKubelet(kubeServer *options.SlurmVirtualKubeletServer) (*slurm_virtual_kubelet.SlurmVirtualKubelet, error) {

@@ -12,7 +12,7 @@ metadata:
   name: slurmbridgejob-editor-role
 rules:
 - apiGroups:
-  - kubecluster.org.kubecluster.org
+  - kubecluster.org
   resources:
   - slurmbridgejobs
   verbs:
@@ -24,7 +24,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - kubecluster.org.kubecluster.org
+  - kubecluster.org
   resources:
   - slurmbridgejobs/status
   verbs:

@@ -41,3 +41,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	)
 	return nil
 }
+
+func init() {
+	SchemeBuilder.Register(addDefaultingFuncs)
+}

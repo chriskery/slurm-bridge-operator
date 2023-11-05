@@ -51,8 +51,8 @@ manifests: controller-gen ## Generate Webhookmanifestsuration, ClusterRole and C
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate/boilerplate.go.txt" paths="./..."
-	hack/update-codegen.sh
-	$(MAKE) apidoc
+	#hack/update-codegen.sh
+	#$(MAKE) apidoc
 
 .PHONY: apidoc
 apidoc:

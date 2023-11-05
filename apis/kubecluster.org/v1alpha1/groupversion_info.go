@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package v1alpha1 contains API Schema definitions for the kubecluster.org v1alpha1 API group
 // +kubebuilder:object:generate=true
-// +groupName=kubecluster.org.kubecluster.org
+// +groupName=kubecluster.org
 package v1alpha1
 
 import (

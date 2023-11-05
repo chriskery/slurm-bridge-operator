@@ -5,7 +5,42 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - kubecluster.org.kubecluster.org
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kubecluster.org
   resources:
   - slurmbridgejobs
   verbs:
@@ -17,13 +52,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - kubecluster.org.kubecluster.org
+  - kubecluster.org
   resources:
   - slurmbridgejobs/finalizers
   verbs:
   - update
 - apiGroups:
-  - kubecluster.org.kubecluster.org
+  - kubecluster.org
   resources:
   - slurmbridgejobs/status
   verbs:

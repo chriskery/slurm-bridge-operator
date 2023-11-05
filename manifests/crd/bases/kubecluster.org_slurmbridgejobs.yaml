@@ -46,19 +46,17 @@ spec:
             properties:
               partition:
                 type: string
-              run_as_group:
+              runAsGroup:
                 format: int64
                 type: integer
-              run_as_user:
+              runAsUser:
                 format: int64
                 type: integer
-              sbatch_script:
+              sbatchScript:
                 type: string
             required:
             - partition
-            - run_as_group
-            - run_as_user
-            - sbatch_script
+            - sbatchScript
             type: object
           status:
             description: SlurmBridgeJobStatus defines the observed state of SlurmBridgeJob
@@ -88,12 +86,7 @@ spec:
                     partition:
                       type: string
                     run_time:
-                      description: A Duration represents the elapsed time between
-                        two instants as an int64 nanosecond count. The representation
-                        limits the largest representable duration to approximately
-                        290 years.
-                      format: int64
-                      type: integer
+                      type: string
                     start_time:
                       format: date-time
                       type: string
@@ -107,12 +100,7 @@ spec:
                       format: date-time
                       type: string
                     time_limit:
-                      description: A Duration represents the elapsed time between
-                        two instants as an int64 nanosecond count. The representation
-                        limits the largest representable duration to approximately
-                        290 years.
-                      format: int64
-                      type: integer
+                      type: string
                     user_id:
                       type: string
                     work_dir:
@@ -139,7 +127,6 @@ spec:
                 type: object
             required:
             - state
-            - subjob_status
             type: object
         type: object
     served: true

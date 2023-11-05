@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,6 +41,13 @@ type Slurm struct {
 	uid    int64
 	cfg    Config
 	client *slurm_agent.Client
+
+	knownJobs sync.Map
+}
+
+func (s *Slurm) mustEmbedUnimplementedWorkloadManagerServer() {
+	//TODO implement me
+	panic("implement me")
 }
 
 // Config is a red-box configuration for each partition available.
@@ -69,11 +77,6 @@ type Feature struct {
 	Quantity int64  `yaml:"quantity"`
 }
 
-func (s *Slurm) mustEmbedUnimplementedWorkloadManagerServer() {
-	//TODO implement me
-	panic("implement me")
-}
-
 // NewSlurm creates a new instance of Slurm.
 func NewSlurm(c *slurm_agent.Client, cfg Config) *Slurm {
 	return &Slurm{client: c, cfg: cfg, uid: int64(os.Geteuid())}
@@ -81,22 +84,36 @@ func NewSlurm(c *slurm_agent.Client, cfg Config) *Slurm {
 
 // SubmitJob submits job and returns id of it in case of success.
 func (s *Slurm) SubmitJob(ctx context.Context, req *workload.SubmitJobRequest) (*workload.SubmitJobResponse, error) {
-	// todo use client id from req
-	id, err := s.client.SBatch(req.Script, req.Partition)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not submit sbatch script")
+	if req == nil || req.Script == "" || req.Partition == "" || req.Uid == "" {
+		return nil, errors.Errorf("Invalid submit job request")
 	}
 
-	return &workload.SubmitJobResponse{
-		JobId: id,
-	}, nil
+	value, ok := s.knownJobs.Load(req.Uid)
+	if !ok {
+		id, err := s.client.SBatch(&slurm_agent.SbatchRequest{
+			Script:     req.Script,
+			Partition:  req.Partition,
+			RunAsUser:  req.RunAsUser,
+			RunAsGroup: req.RunAsGroup,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "could not submit sbatch script")
+		}
+		value = id
+		s.knownJobs.Store(req.Uid, value)
+	}
+
+	return &workload.SubmitJobResponse{JobId: value.(int64)}, nil
 }
 
 // SubmitJobContainer starts a container from the provided image name inside a sbatch script.
 func (s *Slurm) SubmitJobContainer(ctx context.Context, r *workload.SubmitJobContainerRequest) (*workload.SubmitJobContainerResponse, error) {
 	script := buildSLURMScript(r)
 
-	id, err := s.client.SBatch(script, r.Partition)
+	id, err := s.client.SBatch(&slurm_agent.SbatchRequest{
+		Script:    script,
+		Partition: r.Partition,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not submit sbatch script")
 	}
@@ -439,6 +456,7 @@ func mapSInfoToProtoInfo(si []*slurm_agent.JobInfo) ([]*workload.JobInfo, error)
 			BatchHost:  inf.BatchHost,
 			NumNodes:   inf.NumNodes,
 			ArrayId:    inf.ArrayJobID,
+			Reason:     inf.Reason,
 		}
 		pInfs[i] = &pi
 	}

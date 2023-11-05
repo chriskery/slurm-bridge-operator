@@ -49,6 +49,7 @@ var kubeletLabels = sets.NewString(
 	//VK labels
 	"alpha.service-controller.kubernetes.io/exclude-balancer",
 	"node.kubernetes.io/exclude-from-external-load-balancers",
+	"kubernetes.io/role",
 )
 
 var kubeletLabelNamespaces = sets.NewString(
