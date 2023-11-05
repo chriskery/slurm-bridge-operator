@@ -66,7 +66,7 @@ type WorkloadManagerClient interface {
 	// JobSteps returns information about each individual job step.
 	JobSteps(ctx context.Context, in *JobStepsRequest, opts ...grpc.CallOption) (*JobStepsResponse, error)
 	// OpenFile opens a file and streams its content back. May be
-	// useful for results collecting.
+	// useful for result-fetcher collecting.
 	OpenFile(ctx context.Context, in *OpenFileRequest, opts ...grpc.CallOption) (WorkloadManager_OpenFileClient, error)
 	// TailFile opens a file and streams its content back. Unlike
 	// OpenFile this call will watch file content changes and stream
@@ -265,7 +265,7 @@ type WorkloadManagerServer interface {
 	// JobSteps returns information about each individual job step.
 	JobSteps(context.Context, *JobStepsRequest) (*JobStepsResponse, error)
 	// OpenFile opens a file and streams its content back. May be
-	// useful for results collecting.
+	// useful for result-fetcher collecting.
 	OpenFile(*OpenFileRequest, WorkloadManager_OpenFileServer) error
 	// TailFile opens a file and streams its content back. Unlike
 	// OpenFile this call will watch file content changes and stream

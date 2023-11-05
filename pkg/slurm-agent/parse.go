@@ -210,7 +210,7 @@ func parsePartitionsNames(raw string) []string {
 }
 
 // parseSacctResponse is a helper that parses sacct output and
-// returns results in a convenient form.
+// returns result-fetcher in a convenient form.
 func parseSacctResponse(raw string) ([]*JobStepInfo, error) {
 	lines := strings.Split(strings.Trim(raw, "\n"), "\n")
 	infos := make([]*JobStepInfo, len(lines))

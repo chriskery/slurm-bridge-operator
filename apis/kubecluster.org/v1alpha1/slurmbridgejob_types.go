@@ -44,6 +44,11 @@ type SlurmBridgeJobSpec struct {
 	SbatchScript string `json:"sbatchScript"`
 	RunAsUser    *int64 `json:"runAsUser,omitempty"`
 	RunAsGroup   *int64 `json:"runAsGroup,omitempty"`
+
+	// Results may be specified for an optional result-fetcher collection step.
+	// When specified, after job is completed all result-fetcher will be downloaded from Slurm
+	// cluster with respect to this configuration.
+	Results *JobResults `json:"result-fetcher,omitempty"`
 }
 
 type SlurmJobId string
