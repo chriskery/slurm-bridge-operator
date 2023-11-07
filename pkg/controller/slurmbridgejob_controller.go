@@ -25,14 +25,17 @@ import (
 	"github.com/chriskery/slurm-bridge-operator/pkg/workload"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -124,24 +127,39 @@ func (r *SlurmBridgeJobReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	needReconcile := needReconcileSBJ(sjb)
-	if !needReconcile {
-		return ctrl.Result{}, nil
-	}
-
 	sjb = sjb.DeepCopy()
 	// Set default priorities to kubecluster
 	r.Scheme.Default(sjb)
 
-	if err = r.ReconcileSlurmBridgeJob(sjb); err != nil {
-		logrus.Warnf("Reconcile Kube Cluster error %v", err)
+	needReconcile := isSBJFinished(sjb)
+	if !needReconcile || sjb.Spec.Results == nil || sjb.Status.FetchResult {
 		return ctrl.Result{}, err
 	}
 
+	oldStatus := sjb.Status.DeepCopy()
+	if !needReconcile {
+		if err = r.ReconcileSlurmBridgeJobResult(sjb); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else {
+		if err = r.ReconcileSlurmBridgeJob(sjb); err != nil {
+			logrus.Warnf("Reconcile Kube Cluster error %v", err)
+			return ctrl.Result{}, err
+		}
+	}
+
+	// No need to update the cluster status if the status hasn't changed since last time.
+	if !reflect.DeepEqual(*oldStatus, &sjb.Status) {
+		logrus.Infof("Updating slurm-agent job %q", sjb.Name)
+		if err = r.Client.Status().Update(context.Background(), sjb); err != nil {
+			logrus.Errorf("Could not update slurm-agent job: %v", err)
+			return ctrl.Result{}, nil
+		}
+	}
 	return ctrl.Result{}, nil
 }
 
-func needReconcileSBJ(sjb *v1alpha1.SlurmBridgeJob) bool {
+func isSBJFinished(sjb *v1alpha1.SlurmBridgeJob) bool {
 	return !(sjb.Status.State == string(corev1.PodSucceeded) || sjb.Status.State == string(corev1.PodFailed))
 }
 
@@ -201,41 +219,33 @@ func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJob(sjb *v1alpha1.SlurmBr
 	// Fetch the SlurmJob instance
 	sjCurrentPod := &corev1.Pod{}
 	err := r.Client.Get(context.Background(), namespaceName, sjCurrentPod)
-	if err != nil && errors.IsNotFound(err) {
-		if len(sjb.Status.SubjobStatus) != 0 {
-			logrus.Info("Pod will not be created, it was already created once")
-			r.recorder.Eventf(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobFailedReason),
-				"SlurmBridgeJob status change to failed, because pod not found but sub job status not empty")
-			sjb.Status.State = string(corev1.PodFailed)
-			return nil
-		}
-
-		// Translate SlurmJob to Pod
-		sjPod, err := r.newPodForSJ(sjb)
-		if err != nil {
-			logrus.Errorf("Could not translate slurm-agent job into pod: %v", err)
+	if err != nil {
+		if !errors.IsNotFound(err) {
 			return err
 		}
-
-		// Set SlurmJob instance as the owner and controller
-		err = controllerutil.SetControllerReference(sjb, sjPod, r.Scheme)
-		if err != nil {
-			logrus.Errorf("Could not set controller reference for pod: %v", err)
+		if err = r.ReconcilePods(sjb); err != nil {
 			return err
 		}
-		logrus.Infof("Creating new pod %q for slurm-agent job %q", sjPod.Name, sjb.Name)
-		err = r.Create(context.Background(), sjPod)
-		if err != nil {
-			logrus.Errorf("Could not create new pod: %v", err)
-			return err
-		}
-		return nil
 	}
 
+	if err = r.UpdateSBJStatus(sjb, sjCurrentPod); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *SlurmBridgeJobReconciler) UpdateSBJStatus(sjb *v1alpha1.SlurmBridgeJob, sjCurrentPod *corev1.Pod) error {
 	if sjb.Status.State != string(sjCurrentPod.Status.Phase) {
 		r.recorder.Eventf(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobStatusChangeReason),
 			"SlurmBridgeJob status change to %s", sjCurrentPod.Status.Phase)
 		sjb.Status.State = string(sjCurrentPod.Status.Phase)
+	}
+
+	if sjCurrentPod.Labels != nil {
+		endpoint, ok := sjCurrentPod.Labels[common.LabelAgentEndPoint]
+		if ok {
+			sjb.Status.ClusterEndPoint = endpoint
+		}
 	}
 
 	// Otherwise smth has changed, need to update things
@@ -271,12 +281,102 @@ func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJob(sjb *v1alpha1.SlurmBr
 			}
 		}
 	}
+	return nil
+}
 
-	logrus.Infof("Updating slurm-agent job %q", sjb.Name)
-	err = r.Client.Status().Update(context.Background(), sjb)
+func (r *SlurmBridgeJobReconciler) ReconcilePods(sjb *v1alpha1.SlurmBridgeJob) error {
+	if len(sjb.Status.SubjobStatus) != 0 {
+		logrus.Info("Pod will not be created, it was already created once")
+		r.recorder.Eventf(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobFailedReason),
+			"SlurmBridgeJob status change to failed, because pod not found but sub job status not empty")
+		sjb.Status.State = string(corev1.PodFailed)
+		return nil
+	}
+
+	// Translate SlurmJob to Pod
+	sjPod, err := r.newPodForSJ(sjb)
 	if err != nil {
-		logrus.Errorf("Could not update slurm-agent job: %v", err)
+		logrus.Errorf("Could not translate slurm-agent job into pod: %v", err)
+		return err
+	}
+
+	// Set SlurmJob instance as the owner and controller
+	err = controllerutil.SetControllerReference(sjb, sjPod, r.Scheme)
+	if err != nil {
+		logrus.Errorf("Could not set controller reference for pod: %v", err)
+		return err
+	}
+
+	logrus.Infof("Creating new pod %q for slurm-agent job %q", sjPod.Name, sjb.Name)
+	err = r.Create(context.Background(), sjPod)
+	if err != nil {
+		logrus.Errorf("Could not create new pod: %v", err)
 		return err
 	}
 	return nil
+}
+
+func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJobResult(sjb *v1alpha1.SlurmBridgeJob) error {
+	if sjb.Status.FetchResult {
+		return nil
+	}
+	if len(sjb.Status.SubjobStatus) == 0 {
+		r.recorder.Eventf(sjb, corev1.EventTypeWarning, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobFailedValidationReason),
+			"SlurmBridgeJob had not sub jobs found, skip fetch result")
+		return nil
+	}
+
+	job := r.newJobForSJResult(sjb)
+	if err := r.Create(context.Background(), job); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *SlurmBridgeJobReconciler) newJobForSJResult(sjb *v1alpha1.SlurmBridgeJob) *batchv1.Job {
+	backOffLimit := int32(0)
+	containers := r.getJobResultContainers(sjb)
+	jobSpec := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-result-fetcher", sjb.Name),
+			Namespace: sjb.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: containers,
+					//https://kubernetes.io/zh/docs/concepts/workloads/pods/pod-lifecycle/#restart-policy
+					RestartPolicy: corev1.RestartPolicyNever,
+					Volumes:       []corev1.Volume{sjb.Spec.Results.Volume},
+				},
+			},
+			//Specifies the number of retries before marking this job failed. Defaults to 6 +optional
+			//指定标记此任务失败之前的重试次数为0次，创建失败就不再创建。默认值为6
+			BackoffLimit: &backOffLimit,
+		},
+	}
+	return jobSpec
+}
+
+func (r *SlurmBridgeJobReconciler) getJobResultContainers(sjb *v1alpha1.SlurmBridgeJob) []corev1.Container {
+	var containers []corev1.Container
+	to := "/result"
+	for _, jobStatus := range sjb.Status.SubjobStatus {
+		fetcherCMD := fmt.Sprintf("/result-featcher --from %s --to %s --endpoint %s ",
+			jobStatus.StdOut, fmt.Sprintf("%s/%s.out", to, jobStatus.Name), sjb.Status.ClusterEndPoint)
+		containers = append(containers, corev1.Container{
+			Name:    jobStatus.Name,
+			Image:   "docker.io/chriskery/result-fetcher:latest",
+			Command: []string{"sh", "-c", fetcherCMD},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      sjb.Spec.Results.Volume.Name,
+					ReadOnly:  false,
+					MountPath: to,
+				},
+			},
+		})
+	}
+	return containers
 }

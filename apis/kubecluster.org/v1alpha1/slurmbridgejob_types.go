@@ -77,8 +77,10 @@ type SlurmSubjobStatus struct {
 
 // SlurmBridgeJobStatus defines the observed state of SlurmBridgeJob
 type SlurmBridgeJobStatus struct {
-	State        string                            `json:"state"`
-	SubjobStatus map[SlurmJobId]*SlurmSubjobStatus `json:"subjob_status,omitempty"`
+	State           string                            `json:"state"`
+	SubjobStatus    map[SlurmJobId]*SlurmSubjobStatus `json:"subjob_status,omitempty"`
+	FetchResult     bool                              `json:"fetch_result"`
+	ClusterEndPoint string                            `json:"result_end_point"`
 }
 
 // +genclient

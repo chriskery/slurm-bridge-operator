@@ -282,6 +282,7 @@ func (s *SlurmVirtualKubeletProvider) addSlurmJobLabel(pod *v1.Pod, id string) {
 	}
 
 	pod.Labels[common.LabelSlurmBridgeJobId] = id
+	pod.Labels[common.LabelAgentEndPoint] = s.vk.KubeletServer.AgentEndpoint
 
 	_, err := s.vk.Client.CoreV1().Pods(pod.GetNamespace()).Update(context.Background(), pod, metav1.UpdateOptions{})
 	if err != nil {

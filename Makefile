@@ -1,6 +1,10 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= docker.io/chriskery/slurm-bridge-operator:latest
+SLURM_BRIDGE_OPERATOR_IMG ?= docker.io/chriskery/slurm-bridge-operator:latest
+CONFIGURATOR_IMG ?= docker.io/chriskery/configurator:latest
+RESULT_FETCHER_IMG ?= docker.io/chriskery/result-fetcher:latest
+SLURM_AGENT_IMG ?= docker.io/chriskery/slurm-agent:latest
+SLURM_VIRTUAL_KUBELET_IMG ?= docker.io/chriskery/slurm-virtual-kubelet:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.28.0
 
@@ -85,11 +89,20 @@ run: manifests generate fmt vet ## Run a controller from your host.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build -t ${IMG} .
+	$(CONTAINER_TOOL) build -t ${SLURM_BRIDGE_OPERATOR_IMG} -f build/bridge-operator/Dockerfile .
+	$(CONTAINER_TOOL) build -t ${CONFIGURATOR_IMG} -f build/configurator/Dockerfile .
+	$(CONTAINER_TOOL) build -t ${RESULT_FETCHER_IMG} -f build/result-fetcher/Dockerfile .
+	$(CONTAINER_TOOL) build -t ${SLURM_AGENT_IMG} -f build/slurm-agent/Dockerfile .
+	$(CONTAINER_TOOL) build -t ${SLURM_VIRTUAL_KUBELET_IMG} -f build/slurm-virtual-kubelet/Dockerfile .
+
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${IMG}
+	$(CONTAINER_TOOL) push  ${SLURM_BRIDGE_OPERATOR_IMG}
+	$(CONTAINER_TOOL) push  ${CONFIGURATOR_IMG}
+	$(CONTAINER_TOOL) push  ${RESULT_FETCHER_IMG}
+	$(CONTAINER_TOOL) push  ${SLURM_AGENT_IMG}
+	$(CONTAINER_TOOL) push  ${SLURM_VIRTUAL_KUBELET_IMG}
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -104,7 +117,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
 	$(CONTAINER_TOOL) buildx use project-v3-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${SLURM_BRIDGE_OPERATOR_IMG} -f Dockerfile.cross .
 	- $(CONTAINER_TOOL) buildx rm project-v3-builder
 	rm Dockerfile.cross
 
@@ -124,7 +137,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/manifests.
-	cd manifests/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd manifests/manager && $(KUSTOMIZE) edit set image controller=${SLURM_BRIDGE_OPERATOR_IMG}
 	$(KUSTOMIZE) build manifests/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy

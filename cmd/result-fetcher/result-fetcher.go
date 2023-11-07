@@ -57,7 +57,7 @@ func main() {
 		log.Fatalf("can't open file err: %s", err)
 	}
 
-	if err := os.MkdirAll(*to, 0755); err != nil {
+	if err = os.MkdirAll(*to, 0755); err != nil {
 		logrus.Fatalf("can't create dir on mounted volume err: %s", err)
 	}
 
