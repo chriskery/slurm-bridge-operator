@@ -45,7 +45,7 @@ func SetDefaults_SlurmVirtualKubeletConfiguration(obj *SlurmVirtualKubeletConfig
 		obj.Pods = "10000"
 	}
 	if obj.TLSCertFile == "" || obj.TLSPrivateKeyFile == "" {
-		klog.Warningf("TLS cert files not supplied,use default tls cert files")
+		klog.Warningf("TLS cert files not supplied, will use default tls cert files")
 		obj.TLSCertFile = DefaultTLSCertFile
 		obj.TLSPrivateKeyFile = DefaultTLSPrivateKeyFile
 	}

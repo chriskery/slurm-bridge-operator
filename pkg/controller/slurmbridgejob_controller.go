@@ -46,6 +46,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"time"
 )
 
 const (
@@ -138,8 +139,11 @@ func (r *SlurmBridgeJobReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	oldStatus := sjb.Status.DeepCopy()
 	if !needReconcile {
+		if sjb.Status.FetchResult && isFinishedFetchResult(sjb.Status.FetchResultStatus) {
+			return ctrl.Result{}, nil
+		}
 		if err = r.ReconcileSlurmBridgeJobResult(sjb); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true, RequeueAfter: time.Second * 30}, err
 		}
 	} else {
 		if err = r.ReconcileSlurmBridgeJob(sjb); err != nil {
@@ -323,9 +327,6 @@ func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJobResult(sjb *v1alpha1.S
 		return nil
 	}
 
-	if sjb.Status.FetchResult && isFinishedFetchResult(sjb.Status.FetchResultStatus) {
-		return nil
-	}
 	fetchResultJob := &batchv1.Job{}
 	err := r.Get(
 		context.Background(),
@@ -402,7 +403,7 @@ func (r *SlurmBridgeJobReconciler) getJobResultContainers(sjb *v1alpha1.SlurmBri
 	to := "/result"
 	for _, jobStatus := range sjb.Status.SubjobStatus {
 		fetcherCMD := fmt.Sprintf("/result-fetcher --from %s --to %s --endpoint %s ",
-			jobStatus.StdOut, sjb.Name, sjb.Status.ClusterEndPoint)
+			jobStatus.StdOut, fmt.Sprintf("%s/%s", to, sjb.Name), sjb.Status.ClusterEndPoint)
 		containers = append(containers, corev1.Container{
 			Name:    fmt.Sprintf("%s-%s", jobStatus.Name, jobStatus.ID),
 			Image:   "docker.io/chriskery/result-fetcher:latest",
