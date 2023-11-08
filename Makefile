@@ -84,11 +84,16 @@ build: manifests generate fmt vet ## Build manager binary.
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go
 
+.PHONY: vendor
+vendor: fmt vet ## Run a controller from your host.
+	go mod vendor
+
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
-docker-build: ## Build docker image with the manager.
+docker-build: vendor## Build docker image with the manager.
+	go mod vendor
 	$(CONTAINER_TOOL) build -t ${SLURM_BRIDGE_OPERATOR_IMG} -f build/bridge-operator/Dockerfile .
 	$(CONTAINER_TOOL) build -t ${CONFIGURATOR_IMG} -f build/configurator/Dockerfile .
 	$(CONTAINER_TOOL) build -t ${RESULT_FETCHER_IMG} -f build/result-fetcher/Dockerfile .

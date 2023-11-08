@@ -62,7 +62,7 @@ func (s *SlurmVirtualKubeletProvider) CreatePod(ctx context.Context, pod *v1.Pod
 		"SlurmBridgeJob submit to the slurm-agent %s, job id is %d", s.vk.KubeletServer.AgentEndpoint, submitJobResp.JobId)
 	s.knownPods.Store(pod.UID, strconv.FormatInt(submitJobResp.GetJobId(), 10))
 
-	s.addSlurmJobLabel(pod, strconv.FormatInt(submitJobResp.GetJobId(), 10))
+	s.addAndUpdateSlurmJobInfo(pod, strconv.FormatInt(submitJobResp.GetJobId(), 10))
 	return nil
 }
 
@@ -272,7 +272,7 @@ func (s *SlurmVirtualKubeletProvider) validateCreatePod(pod *v1.Pod) error {
 	return nil
 }
 
-func (s *SlurmVirtualKubeletProvider) addSlurmJobLabel(pod *v1.Pod, id string) {
+func (s *SlurmVirtualKubeletProvider) addAndUpdateSlurmJobInfo(pod *v1.Pod, id string) {
 	if pod.Labels == nil {
 		pod.Labels = make(map[string]string)
 	}
@@ -282,9 +282,13 @@ func (s *SlurmVirtualKubeletProvider) addSlurmJobLabel(pod *v1.Pod, id string) {
 	}
 
 	pod.Labels[common.LabelSlurmBridgeJobId] = id
-	pod.Labels[common.LabelAgentEndPoint] = s.vk.KubeletServer.AgentEndpoint
 
-	_, err := s.vk.Client.CoreV1().Pods(pod.GetNamespace()).Update(context.Background(), pod, metav1.UpdateOptions{})
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+	pod.Annotations[common.LabelAgentEndPoint] = s.vk.KubeletServer.AgentEndpoint
+
+	_, err := s.vk.Client.CoreV1().Pods(pod.GetNamespace()).UpdateStatus(context.Background(), pod, metav1.UpdateOptions{})
 	if err != nil {
 		klog.ErrorS(err, "Failed to add slurm job id label for pod %s,%s", pod.GetNamespace()+"/"+pod.GetName())
 	}

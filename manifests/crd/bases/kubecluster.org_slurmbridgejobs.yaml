@@ -46,12 +46,12 @@ spec:
             properties:
               partition:
                 type: string
-              result-fetcher:
-                description: Results may be specified for an optional result-fetcher
+              result:
+                description: Result may be specified for an optional result-fetcher
                   collection step. When specified, after job is completed all result-fetcher
                   will be downloaded from Slurm cluster with respect to this configuration.
                 properties:
-                  mount:
+                  volume:
                     description: Mount is a directory where job result-fetcher will
                       be stored. After result-fetcher collection all job generated
                       files can be found in Mount/<SlurmJob.Name> directory.
@@ -1653,18 +1653,24 @@ spec:
           status:
             description: SlurmBridgeJobStatus defines the observed state of SlurmBridgeJob
             properties:
-              fetch_result:
+              clusterEndPoint:
+                type: string
+              fetchResult:
                 type: boolean
+              fetchResultStatus:
+                type: string
               state:
                 type: string
-              subjob_status:
+              subjobStatus:
                 additionalProperties:
                   properties:
-                    array_job_id:
+                    WorkDir:
                       type: string
-                    batch_host:
+                    arrayJobID:
                       type: string
-                    exit_code:
+                    batchHost:
+                      type: string
+                    exitCode:
                       type: string
                     id:
                       description: 'INSERT ADDITIONAL STATUS FIELD - define observed
@@ -1673,54 +1679,51 @@ spec:
                       type: string
                     name:
                       type: string
-                    node_list:
+                    nodeList:
                       type: string
-                    num_nodes:
+                    numNodes:
                       type: string
                     partition:
                       type: string
-                    run_time:
+                    runTime:
                       type: string
-                    start_time:
+                    startTime:
                       format: date-time
                       type: string
                     state:
                       type: string
-                    std_err:
+                    stdErr:
                       type: string
-                    std_out:
+                    stdOut:
                       type: string
-                    submit_time:
+                    submitTime:
                       format: date-time
                       type: string
-                    time_limit:
+                    timeLimit:
                       type: string
-                    user_id:
-                      type: string
-                    work_dir:
+                    userId:
                       type: string
                   required:
-                  - array_job_id
-                  - batch_host
-                  - exit_code
+                  - WorkDir
+                  - arrayJobID
+                  - batchHost
+                  - exitCode
                   - id
                   - name
-                  - node_list
-                  - num_nodes
+                  - nodeList
+                  - numNodes
                   - partition
-                  - run_time
-                  - start_time
+                  - runTime
+                  - startTime
                   - state
-                  - std_err
-                  - std_out
-                  - submit_time
-                  - time_limit
-                  - user_id
-                  - work_dir
+                  - stdErr
+                  - stdOut
+                  - submitTime
+                  - timeLimit
+                  - userId
                   type: object
                 type: object
             required:
-            - fetch_result
             - state
             type: object
         type: object

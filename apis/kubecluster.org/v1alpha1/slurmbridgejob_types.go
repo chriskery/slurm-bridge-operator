@@ -45,10 +45,10 @@ type SlurmBridgeJobSpec struct {
 	RunAsUser    *int64 `json:"runAsUser,omitempty"`
 	RunAsGroup   *int64 `json:"runAsGroup,omitempty"`
 
-	// Results may be specified for an optional result-fetcher collection step.
+	// Result may be specified for an optional result-fetcher collection step.
 	// When specified, after job is completed all result-fetcher will be downloaded from Slurm
 	// cluster with respect to this configuration.
-	Results *JobResults `json:"result-fetcher,omitempty"`
+	Result *JobResult `json:"result,omitempty"`
 }
 
 type SlurmJobId string
@@ -57,30 +57,31 @@ type SlurmSubjobStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	ID         string       `json:"id"`
-	UserID     string       `json:"user_id" `
-	ArrayJobID string       `json:"array_job_id"`
+	UserID     string       `json:"userId" `
+	ArrayJobID string       `json:"arrayJobID"`
 	Name       string       `json:"name"`
-	ExitCode   string       `json:"exit_code"`
+	ExitCode   string       `json:"exitCode"`
 	State      string       `json:"state"`
-	SubmitTime *metav1.Time `json:"submit_time"`
-	StartTime  *metav1.Time `json:"start_time"`
-	RunTime    string       `json:"run_time"`
-	TimeLimit  string       `json:"time_limit"`
-	WorkDir    string       `json:"work_dir"`
-	StdOut     string       `json:"std_out"`
-	StdErr     string       `json:"std_err"`
+	SubmitTime *metav1.Time `json:"submitTime"`
+	StartTime  *metav1.Time `json:"startTime"`
+	RunTime    string       `json:"runTime"`
+	TimeLimit  string       `json:"timeLimit"`
+	WorkDir    string       `json:"WorkDir"`
+	StdOut     string       `json:"stdOut"`
+	StdErr     string       `json:"stdErr"`
 	Partition  string       `json:"partition"`
-	NodeList   string       `json:"node_list"`
-	BatchHost  string       `json:"batch_host"`
-	NumNodes   string       `json:"num_nodes"`
+	NodeList   string       `json:"nodeList"`
+	BatchHost  string       `json:"batchHost"`
+	NumNodes   string       `json:"numNodes"`
 }
 
 // SlurmBridgeJobStatus defines the observed state of SlurmBridgeJob
 type SlurmBridgeJobStatus struct {
-	State           string                            `json:"state"`
-	SubjobStatus    map[SlurmJobId]*SlurmSubjobStatus `json:"subjob_status,omitempty"`
-	FetchResult     bool                              `json:"fetch_result"`
-	ClusterEndPoint string                            `json:"result_end_point"`
+	State             string                            `json:"state"`
+	SubjobStatus      map[SlurmJobId]*SlurmSubjobStatus `json:"subjobStatus,omitempty"`
+	FetchResult       bool                              `json:"fetchResult,omitempty"`
+	FetchResultStatus string                            `json:"fetchResultStatus,omitempty"`
+	ClusterEndPoint   string                            `json:"clusterEndPoint,omitempty"`
 }
 
 // +genclient

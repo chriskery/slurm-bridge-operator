@@ -15,8 +15,12 @@ spec:
     #SBATCH --nodes=1
     srun hostname
     hostname
-    for i in {1..10};do echo $i && sleep 10;done
-    nvidia-smi
-    sleep 100
+    for i in {1..5};do echo $i && sleep 5;done
 #  runAsUser: 1003
 #  runAsGroup: 0
+  result:
+    volume:
+      name: myresult
+      hostPath:
+        path: /tmp/result
+        type: DirectoryOrCreate

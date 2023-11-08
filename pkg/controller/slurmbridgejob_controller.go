@@ -132,8 +132,8 @@ func (r *SlurmBridgeJobReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	r.Scheme.Default(sjb)
 
 	needReconcile := isSBJFinished(sjb)
-	if !needReconcile || sjb.Spec.Results == nil || sjb.Status.FetchResult {
-		return ctrl.Result{}, err
+	if !needReconcile && sjb.Spec.Result == nil {
+		return ctrl.Result{}, nil
 	}
 
 	oldStatus := sjb.Status.DeepCopy()
@@ -241,8 +241,8 @@ func (r *SlurmBridgeJobReconciler) UpdateSBJStatus(sjb *v1alpha1.SlurmBridgeJob,
 		sjb.Status.State = string(sjCurrentPod.Status.Phase)
 	}
 
-	if sjCurrentPod.Labels != nil {
-		endpoint, ok := sjCurrentPod.Labels[common.LabelAgentEndPoint]
+	if sjCurrentPod.Annotations != nil {
+		endpoint, ok := sjCurrentPod.Annotations[common.LabelAgentEndPoint]
 		if ok {
 			sjb.Status.ClusterEndPoint = endpoint
 		}
@@ -317,30 +317,68 @@ func (r *SlurmBridgeJobReconciler) ReconcilePods(sjb *v1alpha1.SlurmBridgeJob) e
 }
 
 func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJobResult(sjb *v1alpha1.SlurmBridgeJob) error {
-	if sjb.Status.FetchResult {
-		return nil
-	}
 	if len(sjb.Status.SubjobStatus) == 0 {
 		r.recorder.Eventf(sjb, corev1.EventTypeWarning, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobFailedValidationReason),
 			"SlurmBridgeJob had not sub jobs found, skip fetch result")
 		return nil
 	}
 
-	job := r.newJobForSJResult(sjb)
-	if err := r.Create(context.Background(), job); err != nil {
-		return err
+	if sjb.Status.FetchResult && isFinishedFetchResult(sjb.Status.FetchResultStatus) {
+		return nil
 	}
-
+	fetchResultJob := &batchv1.Job{}
+	err := r.Get(
+		context.Background(),
+		types.NamespacedName{Name: fmt.Sprintf("%s-result-fetcher", sjb.Name), Namespace: sjb.Namespace},
+		fetchResultJob,
+	)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+		if sjb.Status.FetchResult {
+			return nil
+		}
+		job := r.newJobForSJResult(sjb)
+		if err = r.Create(context.Background(), job); err != nil {
+			return err
+		}
+		r.recorder.Eventf(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobResultFetchCreatedReason),
+			"SlurmBridgeJob begin to fetch result")
+		sjb.Status.FetchResult = true
+	}
+	if fetchResultJob.Status.Succeeded > 0 {
+		sjb.Status.FetchResultStatus = string(corev1.PodSucceeded)
+		r.recorder.Eventf(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobResultFetchSucceedReason),
+			"SlurmBridgeJob fetch result status change to %s", common.SlurmBridgeJobResultFetchSucceedReason)
+	} else if fetchResultJob.Status.Failed > 0 {
+		sjb.Status.FetchResultStatus = string(corev1.PodFailed)
+		r.recorder.Eventf(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobResultFetchFailReason),
+			"SlurmBridgeJob fetch result status change to %s", common.SlurmBridgeJobFailedReason)
+	} else {
+		sjb.Status.FetchResultStatus = string(corev1.PodRunning)
+		r.recorder.Eventf(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobResultFetchRunningReason),
+			"SlurmBridgeJob fetch result status change to %s", common.SlurmBridgeJobResultFetchRunningReason)
+	}
 	return nil
 }
 
 func (r *SlurmBridgeJobReconciler) newJobForSJResult(sjb *v1alpha1.SlurmBridgeJob) *batchv1.Job {
 	backOffLimit := int32(0)
 	containers := r.getJobResultContainers(sjb)
+	boolPtr := func(b bool) *bool { return &b }
 	jobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-result-fetcher", sjb.Name),
 			Namespace: sjb.Namespace,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion:         v1alpha1.GroupVersion.String(),
+				Kind:               v1alpha1.GroupVersion.WithKind(v1alpha1.SlurmBridgeJobKind).Kind,
+				Name:               sjb.GetName(),
+				UID:                sjb.GetUID(),
+				BlockOwnerDeletion: boolPtr(true),
+				Controller:         boolPtr(true),
+			}},
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
@@ -348,7 +386,7 @@ func (r *SlurmBridgeJobReconciler) newJobForSJResult(sjb *v1alpha1.SlurmBridgeJo
 					Containers: containers,
 					//https://kubernetes.io/zh/docs/concepts/workloads/pods/pod-lifecycle/#restart-policy
 					RestartPolicy: corev1.RestartPolicyNever,
-					Volumes:       []corev1.Volume{sjb.Spec.Results.Volume},
+					Volumes:       []corev1.Volume{sjb.Spec.Result.Volume},
 				},
 			},
 			//Specifies the number of retries before marking this job failed. Defaults to 6 +optional
@@ -363,15 +401,15 @@ func (r *SlurmBridgeJobReconciler) getJobResultContainers(sjb *v1alpha1.SlurmBri
 	var containers []corev1.Container
 	to := "/result"
 	for _, jobStatus := range sjb.Status.SubjobStatus {
-		fetcherCMD := fmt.Sprintf("/result-featcher --from %s --to %s --endpoint %s ",
-			jobStatus.StdOut, fmt.Sprintf("%s/%s.out", to, jobStatus.Name), sjb.Status.ClusterEndPoint)
+		fetcherCMD := fmt.Sprintf("/result-fetcher --from %s --to %s --endpoint %s ",
+			jobStatus.StdOut, sjb.Name, sjb.Status.ClusterEndPoint)
 		containers = append(containers, corev1.Container{
-			Name:    jobStatus.Name,
+			Name:    fmt.Sprintf("%s-%s", jobStatus.Name, jobStatus.ID),
 			Image:   "docker.io/chriskery/result-fetcher:latest",
 			Command: []string{"sh", "-c", fetcherCMD},
 			VolumeMounts: []corev1.VolumeMount{
 				{
-					Name:      sjb.Spec.Results.Volume.Name,
+					Name:      sjb.Spec.Result.Volume.Name,
 					ReadOnly:  false,
 					MountPath: to,
 				},
@@ -379,4 +417,8 @@ func (r *SlurmBridgeJobReconciler) getJobResultContainers(sjb *v1alpha1.SlurmBri
 		})
 	}
 	return containers
+}
+
+func isFinishedFetchResult(status string) bool {
+	return status == string(corev1.PodFailed) || status == string(corev1.PodSucceeded)
 }

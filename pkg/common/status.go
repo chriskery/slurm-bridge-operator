@@ -27,6 +27,11 @@ const (
 	// SlurmBridgeJobResumedReason is added in a KubeSlurmBridgeJob when it is unsuspended.
 	SlurmBridgeJobResumedReason      = "Resumed"
 	SlurmBridgeJobStatusChangeReason = "StatusChanged"
+
+	SlurmBridgeJobResultFetchCreatedReason = "Created"
+	SlurmBridgeJobResultFetchSucceedReason = "FetchSucceeded"
+	SlurmBridgeJobResultFetchFailReason    = "FetchFailed"
+	SlurmBridgeJobResultFetchRunningReason = "FetchRunning"
 )
 
 func NewReason(kind, reason string) string {
