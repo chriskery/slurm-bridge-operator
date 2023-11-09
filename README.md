@@ -1,80 +1,66 @@
-# slurm-bridge-operator
-// TODO(user): Add simple overview of use/purpose
+# Slurm Bridge Operator
+
+Slurm bridge operator is a Kubernetes operator implementation, capable of submitting and monitoring slurm jobs, It acts
+as a proxy for the external slurm cluster in the k8s cluster
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+The slurm bridge operator consists of the following five components:
+
+- [SlurmAgent](cmd/slurm-agent/slurm-agent.go)
+- [Configurator](cmd/configurator/configurator.go)
+- [SlurmVirtualKubelet](cmd/slurm-virtual-kubelet/slurm-virtual-kubelet.go)
+- [BridgeOperator](cmd/bridge-operator/bridge-operator.go)
+- [ResultFetcher](cmd/result-fetcher/result-fetcher.go)
 
 ## Getting Started
-You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
-**Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
+
+You’ll need a Kubernetes cluster and a Slurm cluster to run against.
 
 ### Running on the cluster
-1. Install Instances of Custom Resources:
 
-```sh
-kubectl apply -k manifests/samples/
+1. Clone the repo.
+
+```bash
+git clone https://github.com/chriskery/slurm-bridge-operator
+cd slurm-bridge-operator
 ```
 
-2. Build and push your image to the location specified by `IMG`:
+2. Install Slurm Bridge Operator CRDs.
 
 ```sh
+maek install
+```
+
+Build and push your image to the location specified by `IMG`.
+
+```shell
 make docker-build docker-push IMG=<some-registry>/slurm-agent-bridge-operator:tag
 ```
 
-3. Deploy the controller to the cluster with the image specified by `IMG`:
+Deploy the controller to the cluster with the image specified by `IMG`.
 
-```sh
+```shell
 make deploy IMG=<some-registry>/slurm-agent-bridge-operator:tag
 ```
 
-### Uninstall CRDs
-To delete the CRDs from the cluster:
+3. Build and install slurm agent on the slurm login node as a proxy between kubernetes and slurm clusetr.
 
-```sh
-make uninstall
+```shell
+make build
 ```
 
-### Undeploy controller
-UnDeploy the controller from the cluster:
+slurm-agent binary file will be build to bin/slurm-agent
 
-```sh
-make undeploy
+4. Install configurator.
+```shell
+kubectl apply -f manifests/configurator.yaml
 ```
 
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
-### How it works
-This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/).
+## Quick Start
 
-It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/),
-which provide a reconcile function responsible for synchronizing resources until the desired state is reached on the cluster.
-
-### Test It Out
-1. Install the CRDs into the cluster:
-
-```sh
-make install
-```
-
-2. Run your controller (this will run in the foreground, so switch to a new terminal if you want to leave it running):
-
-```sh
-make run
-```
-
-**NOTE:** You can also run this in one step by running: `make install run`
-
-### Modifying the API definitions
-If you are editing the API definitions, generate the manifests such as CRs or CRDs using:
-
-```sh
-make manifests
-```
-
-**NOTE:** Run `make --help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+Please refer to the [quick-start.md](docs/quick-start.md)  for more information.
 
 ## License
 

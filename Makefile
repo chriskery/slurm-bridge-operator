@@ -78,7 +78,7 @@ test: manifests generate fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+	go build -o bin/slurm-agent cmd/slurm-agent/slurm-agent.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
