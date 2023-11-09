@@ -30,33 +30,25 @@ cd slurm-bridge-operator
 
 ```sh
 maek install
-```
-
-Build and push your image to the location specified by `IMG`.
-
-```shell
+###Build and push your image to the location specified by `IMG`.
 make docker-build docker-push IMG=<some-registry>/slurm-agent-bridge-operator:tag
-```
-
-Deploy the controller to the cluster with the image specified by `IMG`.
-
-```shell
+###Deploy the controller to the cluster with the image specified by `IMG`.
 make deploy IMG=<some-registry>/slurm-agent-bridge-operator:tag
 ```
 
-3. Build and install slurm agent on the slurm login node as a proxy between kubernetes and slurm clusetr.
+3. Build and install slurm agent on the slurm login node as a proxy between kubernetes and slurm cluster.
+   The slurm-agent binary file will be build to bin/slurm-agent
 
 ```shell
 make build
+
 ```
 
-slurm-agent binary file will be build to bin/slurm-agent
-
 4. Install configurator.
+
 ```shell
 kubectl apply -f manifests/configurator.yaml
 ```
-
 
 ## Quick Start
 
