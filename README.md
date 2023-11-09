@@ -1,4 +1,7 @@
 # Slurm Bridge Operator
+[![Build Status](https://github.com/chriskery/slurm-bridge-operator/actions/workflows/test-go.yml/badge.svg?branch=master)](https://github.com/chriskery/slurm-bridge-operator/actions/workflows/test-go.yaml?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/chriskery/slurm-bridge-operator/badge.svg?branch=master)](https://coveralls.io/github/chriskery/slurm-bridge-operator?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/chriskery/slurm-bridge-operator)](https://goreportcard.com/report/github.com/chriskery/slurm-bridge-operator)
 
 Slurm bridge operator is a Kubernetes operator implementation, capable of submitting and monitoring slurm jobs, It acts
 as a proxy for the external slurm cluster in the k8s cluster
