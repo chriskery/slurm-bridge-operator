@@ -1,0 +1,11 @@
+resources:
+- configurator.yaml
+- configurator-role.yaml
+- configurator-role_binding.yaml
+- configurator-service-account.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: configurator
+  newName: docker.io/chriskery/configurator
+  newTag: latest

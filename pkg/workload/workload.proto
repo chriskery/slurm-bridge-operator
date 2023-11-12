@@ -35,6 +35,8 @@ service WorkloadManager {
   rpc JobInfo (JobInfoRequest) returns (JobInfoResponse);
   // JobSteps returns information about each individual job step.
   rpc JobSteps (JobStepsRequest) returns (JobStepsResponse);
+  // JobState returns information about each individual job step.
+  rpc JobState(JobStateRequest) returns (JobStepsResponse);
   // OpenFile opens a file and streams its content back. May be
   // useful for results collecting.
   rpc OpenFile (OpenFileRequest) returns (stream Chunk);
@@ -69,6 +71,12 @@ message SubmitJobRequest {
   string run_as_user = 4;
   string run_as_group = 5;
   string uid = 6;
+  int64 cpufs_per_task = 7;
+  int64 mem_per_cpu = 8;
+  int64 ntasks_per_node = 9;
+  string array = 10;
+  int64 ntasks = 11;
+  int64 nodes = 12;
 }
 
 message SubmitJobResponse {
@@ -99,9 +107,19 @@ message JobStepsRequest {
   int64 job_id = 1;
 }
 
+message JobStateRequest {
+  // ID of a job to fetch steps of.
+  string job_id = 1;
+}
+
 message JobStepsResponse {
   // Job steps information.
   repeated JobStepInfo job_steps = 1;
+}
+
+message JobStateResponse {
+  // Job steps information.
+  repeated JobStateInfo job_states = 1;
 }
 
 message OpenFileRequest {
@@ -285,6 +303,13 @@ message JobStepInfo {
   google.protobuf.Timestamp start_time = 5;
   // Job step end time.
   google.protobuf.Timestamp end_time = 6;
+}
+
+// JobStepInfo represents information about a single job step.
+message JobStateInfo {
+  string ave_cpu = 1;
+  string ave_rss = 2;
+  string job_id = 3;
 }
 
 // Chunk is an arbitrary amount of bytes.

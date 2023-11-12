@@ -38,6 +38,7 @@ const (
 	WorkloadManager_CancelJob_FullMethodName          = "/workload.WorkloadManager/CancelJob"
 	WorkloadManager_JobInfo_FullMethodName            = "/workload.WorkloadManager/JobInfo"
 	WorkloadManager_JobSteps_FullMethodName           = "/workload.WorkloadManager/JobSteps"
+	WorkloadManager_JobState_FullMethodName           = "/workload.WorkloadManager/JobState"
 	WorkloadManager_OpenFile_FullMethodName           = "/workload.WorkloadManager/OpenFile"
 	WorkloadManager_TailFile_FullMethodName           = "/workload.WorkloadManager/TailFile"
 	WorkloadManager_Resources_FullMethodName          = "/workload.WorkloadManager/Resources"
@@ -65,8 +66,10 @@ type WorkloadManagerClient interface {
 	JobInfo(ctx context.Context, in *JobInfoRequest, opts ...grpc.CallOption) (*JobInfoResponse, error)
 	// JobSteps returns information about each individual job step.
 	JobSteps(ctx context.Context, in *JobStepsRequest, opts ...grpc.CallOption) (*JobStepsResponse, error)
+	// JobState returns information about each individual job step.
+	JobState(ctx context.Context, in *JobStateRequest, opts ...grpc.CallOption) (*JobStepsResponse, error)
 	// OpenFile opens a file and streams its content back. May be
-	// useful for result-fetcher collecting.
+	// useful for results collecting.
 	OpenFile(ctx context.Context, in *OpenFileRequest, opts ...grpc.CallOption) (WorkloadManager_OpenFileClient, error)
 	// TailFile opens a file and streams its content back. Unlike
 	// OpenFile this call will watch file content changes and stream
@@ -132,6 +135,15 @@ func (c *workloadManagerClient) JobInfo(ctx context.Context, in *JobInfoRequest,
 func (c *workloadManagerClient) JobSteps(ctx context.Context, in *JobStepsRequest, opts ...grpc.CallOption) (*JobStepsResponse, error) {
 	out := new(JobStepsResponse)
 	err := c.cc.Invoke(ctx, WorkloadManager_JobSteps_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workloadManagerClient) JobState(ctx context.Context, in *JobStateRequest, opts ...grpc.CallOption) (*JobStepsResponse, error) {
+	out := new(JobStepsResponse)
+	err := c.cc.Invoke(ctx, WorkloadManager_JobState_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -264,8 +276,10 @@ type WorkloadManagerServer interface {
 	JobInfo(context.Context, *JobInfoRequest) (*JobInfoResponse, error)
 	// JobSteps returns information about each individual job step.
 	JobSteps(context.Context, *JobStepsRequest) (*JobStepsResponse, error)
+	// JobState returns information about each individual job step.
+	JobState(context.Context, *JobStateRequest) (*JobStepsResponse, error)
 	// OpenFile opens a file and streams its content back. May be
-	// useful for result-fetcher collecting.
+	// useful for results collecting.
 	OpenFile(*OpenFileRequest, WorkloadManager_OpenFileServer) error
 	// TailFile opens a file and streams its content back. Unlike
 	// OpenFile this call will watch file content changes and stream
@@ -282,6 +296,7 @@ type WorkloadManagerServer interface {
 	Nodes(context.Context, *NodesRequest) (*NodesResponse, error)
 	// WorkloadInfo provides info about workload (name, version, red-box uid)
 	WorkloadInfo(context.Context, *WorkloadInfoRequest) (*WorkloadInfoResponse, error)
+	mustEmbedUnimplementedWorkloadManagerServer()
 }
 
 // UnimplementedWorkloadManagerServer must be embedded to have forward compatible implementations.
@@ -302,6 +317,9 @@ func (UnimplementedWorkloadManagerServer) JobInfo(context.Context, *JobInfoReque
 }
 func (UnimplementedWorkloadManagerServer) JobSteps(context.Context, *JobStepsRequest) (*JobStepsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method JobSteps not implemented")
+}
+func (UnimplementedWorkloadManagerServer) JobState(context.Context, *JobStateRequest) (*JobStepsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method JobState not implemented")
 }
 func (UnimplementedWorkloadManagerServer) OpenFile(*OpenFileRequest, WorkloadManager_OpenFileServer) error {
 	return status.Errorf(codes.Unimplemented, "method OpenFile not implemented")
@@ -423,6 +441,24 @@ func _WorkloadManager_JobSteps_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WorkloadManagerServer).JobSteps(ctx, req.(*JobStepsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkloadManager_JobState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(JobStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkloadManagerServer).JobState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkloadManager_JobState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkloadManagerServer).JobState(ctx, req.(*JobStateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -590,6 +626,10 @@ var WorkloadManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "JobSteps",
 			Handler:    _WorkloadManager_JobSteps_Handler,
+		},
+		{
+			MethodName: "JobState",
+			Handler:    _WorkloadManager_JobState_Handler,
 		},
 		{
 			MethodName: "Resources",

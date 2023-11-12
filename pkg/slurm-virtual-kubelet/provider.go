@@ -45,6 +45,21 @@ func (s *SlurmVirtualKubeletProvider) CreatePod(ctx context.Context, pod *v1.Pod
 		return err
 	}
 
+	submitRequest := s.newSubmitRequestForPod(pod)
+	submitJobResp, err := s.vk.SlurmClient.SubmitJob(ctx, submitRequest)
+	if err != nil {
+		return err
+	}
+
+	s.vk.recorder.Eventf(pod, v1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobCreatedReason),
+		"SlurmBridgeJob submit to the slurm-agent %s, job id is %d", s.vk.KubeletServer.AgentEndpoint, submitJobResp.JobId)
+	s.knownPods.Store(pod.UID, strconv.FormatInt(submitJobResp.GetJobId(), 10))
+
+	s.addAndUpdateSlurmJobInfo(pod, strconv.FormatInt(submitJobResp.GetJobId(), 10))
+	return nil
+}
+
+func (s *SlurmVirtualKubeletProvider) newSubmitRequestForPod(pod *v1.Pod) *workload.SubmitJobRequest {
 	submitRequest := &workload.SubmitJobRequest{
 		Uid:       string(pod.GetUID()),
 		Partition: s.vk.KubeletServer.SlurmPartition,
@@ -54,16 +69,57 @@ func (s *SlurmVirtualKubeletProvider) CreatePod(ctx context.Context, pod *v1.Pod
 	}
 	submitRequest.Script = pod.Spec.Containers[0].Command[0]
 
-	submitJobResp, err := s.vk.SlurmClient.SubmitJob(ctx, submitRequest)
-	if err != nil {
-		return err
+	labels := pod.GetLabels()
+	nodes, ok := labels[common.LabelsResourceRequestNodes]
+	if ok {
+		parseInt, err := strconv.ParseInt(nodes, 10, 64)
+		if err != nil {
+			klog.Errorf("Failed to Parse nodes for %/%s", pod.GetNamespace(), pod.GetName())
+		} else {
+			submitRequest.Nodes = parseInt
+		}
 	}
-	s.vk.recorder.Eventf(pod, v1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobCreatedReason),
-		"SlurmBridgeJob submit to the slurm-agent %s, job id is %d", s.vk.KubeletServer.AgentEndpoint, submitJobResp.JobId)
-	s.knownPods.Store(pod.UID, strconv.FormatInt(submitJobResp.GetJobId(), 10))
-
-	s.addAndUpdateSlurmJobInfo(pod, strconv.FormatInt(submitJobResp.GetJobId(), 10))
-	return nil
+	cpusPerTask, ok := labels[common.LabelsResourceRequestCpusPerTask]
+	if ok {
+		parseInt, err := strconv.ParseInt(cpusPerTask, 10, 64)
+		if err != nil {
+			klog.Errorf("Failed to Parse cpusPerTask for %/%s", pod.GetNamespace(), pod.GetName())
+		} else {
+			submitRequest.CpufsPerTask = parseInt
+		}
+	}
+	memPerCpu, ok := labels[common.LabelsResourceRequestMemPerCpu]
+	if ok {
+		parseInt, err := strconv.ParseInt(memPerCpu, 10, 64)
+		if err != nil {
+			klog.Errorf("Failed to Parse memPerCpu for %/%s", pod.GetNamespace(), pod.GetName())
+		} else {
+			submitRequest.MemPerCpu = parseInt
+		}
+	}
+	ntasksPerNode, ok := labels[common.LabelsResourceRequestNTasksPerNode]
+	if ok {
+		parseInt, err := strconv.ParseInt(ntasksPerNode, 10, 64)
+		if err != nil {
+			klog.Errorf("Failed to Parse ntasksPerNode for %/%s", pod.GetNamespace(), pod.GetName())
+		} else {
+			submitRequest.NtasksPerNode = parseInt
+		}
+	}
+	array, ok := labels[common.LabelsResourceRequestArray]
+	if ok {
+		submitRequest.Array = array
+	}
+	ntasks, ok := labels[common.LabelsResourceRequestNTasks]
+	if ok {
+		parseInt, err := strconv.ParseInt(ntasks, 10, 64)
+		if err != nil {
+			klog.Errorf("Failed to Parse ntasks for %/%s", pod.GetNamespace(), pod.GetName())
+		} else {
+			submitRequest.Ntasks = parseInt
+		}
+	}
+	return submitRequest
 }
 
 func needReconcile(pod *v1.Pod) bool {
@@ -249,7 +305,77 @@ func (s *SlurmVirtualKubeletProvider) AttachToContainer(ctx context.Context, nam
 }
 
 func (s *SlurmVirtualKubeletProvider) GetStatsSummary(ctx context.Context) (*statsv1alpha1.Summary, error) {
+	//pods, err := s.GetPods(ctx)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//var errGroup errgroup.Group
+	//
+	//end := time.Now()
+	//start := end.Add(-1 * time.Minute)
+	//chResult := make(chan statsv1alpha1.PodStats, len(pods))
+	//sema := make(chan struct{}, 10)
+	//for _, pod := range pods {
+	//	if pod.Status.Phase != v1.PodRunning {
+	//		continue
+	//	}
+	//	pod := pod
+	//	errGroup.Go(func() error {
+	//		select {
+	//		case <-ctx.Done():
+	//			return ctx.Err()
+	//		case sema <- struct{}{}:
+	//		}
+	//		defer func() {
+	//			<-sema
+	//		}()
+	//
+	//		klog.Infof("Acquired semaphore")
+	//		jobId := s.getSlurmJobId(pod)
+	//		if jobId == "" {
+	//			klog.Warningf("Failed to get pod %s/%s job id", pod.GetNamespace(), pod.GetName())
+	//			return nil
+	//		}
+	//
+	//		jobIdInt, err := strconv.ParseInt(jobId, 10, 64)
+	//		if err != nil {
+	//			klog.Error(err)
+	//			return nil
+	//		}
+	//		jobStateInfo, err := s.vk.SlurmClient.JobState(ctx, &workload.JobStateRequest{JobId: jobIdInt})
+	//		if err != nil {
+	//			klog.Error(err)
+	//			return nil
+	//		}
+	//
+	//		chResult <- collectMetrics(pod, jobStateInfo)
+	//		return nil
+	//	})
+	//}
+	//
+	//if err := errGroup.Wait(); err != nil {
+	//	span.SetStatus(err)
+	//	return nil, errors.Wrap(err, "error in request to fetch container group metrics")
+	//}
+	//close(chResult)
+	//log.G(ctx).Debugf("Collected status from azure for %d pods", len(pods))
+	//
+	//var s stats.Summary
+	//s.Node = stats.NodeStats{
+	//	NodeName: p.nodeName,
+	//}
+	//s.Pods = make([]stats.PodStats, 0, len(chResult))
+	//
+	//for stat := range chResult {
+	//	s.Pods = append(s.Pods, stat)
+	//}
+
 	return nil, nil
+}
+
+func collectMetrics(pod *v1.Pod, info *workload.JobStepsResponse) statsv1alpha1.PodStats {
+
 }
 
 func (s *SlurmVirtualKubeletProvider) GetMetricsResource(ctx context.Context) ([]*io_prometheus_client.MetricFamily, error) {

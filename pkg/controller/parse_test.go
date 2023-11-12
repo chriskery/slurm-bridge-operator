@@ -225,7 +225,7 @@ srun rm lolcow_latest.sif
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			resources, err := extractBatchResources(tc.script)
+			resources, err := extractBatchResourcesFromScript(tc.script)
 			if tc.expectError {
 				require.Error(t, err)
 			} else {

@@ -24,11 +24,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-// extractBatchResources extracts resources that should be satisfied for a slurm-agent
+// extractBatchResourcesFromScript extracts resources that should be satisfied for a slurm-agent
 // job to run. More particularly, the following SBATCH directives are parsed:
 // nodes, time, mem, ntasks and/or (n)tasks-per-node.
 // A zero value is returned if corresponding value is not provided.
-func extractBatchResources(script string) (*v1alpha1.Resources, error) {
+func extractBatchResourcesFromScript(script string) (*v1alpha1.Resources, error) {
 	const sbatchHeader = "#SBATCH"
 
 	var err error
@@ -74,7 +74,7 @@ const (
 	timeLimitShort   = "-t"
 	nodes            = "--nodes"
 	nodesShort       = "-N"
-	mem              = "--mem"
+	memPerCPu        = "--mem-per-cpu"
 	tasksPerNode     = "--ntasks-per-node"
 	cpusPerTask      = "--cpus-per-task"
 	cpusPerTaskShort = "-c"
@@ -101,31 +101,36 @@ func applySbatchParam(res v1alpha1.Resources, param, value string) (v1alpha1.Res
 			return v1alpha1.Resources{}, errors.Wrapf(err, "could not parse amount of nodes")
 		}
 		res.Nodes = nodes
-	case mem:
+	case memPerCPu:
 		// suffixes are not supported yet
 		mem, err := strconv.ParseInt(value, 10, 0)
 		if err != nil {
 			return v1alpha1.Resources{}, errors.Wrapf(err, "could not parse memory")
 		}
-		res.MemPerNode = mem
+		res.MemPerCpu = mem
 	case cpusPerTask, cpusPerTaskShort:
 		cpus, err := strconv.ParseInt(value, 10, 0)
 		if err != nil {
 			return v1alpha1.Resources{}, errors.Wrapf(err, "could not parse cpus per node")
 		}
-		if res.CPUPerNode == 0 {
-			res.CPUPerNode = 1
-		}
-		res.CPUPerNode *= cpus
+		res.CpusPerTask = cpus
 	case tasksPerNode:
 		tasks, err := strconv.ParseInt(value, 10, 0)
 		if err != nil {
 			return v1alpha1.Resources{}, errors.Wrapf(err, "could not parse tasks per node")
 		}
-		if res.CPUPerNode == 0 {
-			res.CPUPerNode = 1
-		}
-		res.CPUPerNode *= tasks
+		res.NtasksPerNode = tasks
 	}
 	return res, nil
+}
+
+func parseArrayLen(array string) int64 {
+	if strings.Contains(array, "-") {
+		splits := strings.Split(array, "-")
+		startIndex, _ := strconv.Atoi(splits[0])
+		endIndex, _ := strconv.Atoi(splits[1])
+		return int64(endIndex - startIndex + 1)
+	}
+
+	return int64(len(strings.Split(array, ",")))
 }

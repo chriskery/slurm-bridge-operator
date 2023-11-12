@@ -1,0 +1,19 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrolebinding
+    app.kubernetes.io/instance: configurator-rolebinding
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: slurm-agent-bridge-operator
+    app.kubernetes.io/part-of: slurm-agent-bridge-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: configurator-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: configurator-role
+subjects:
+- kind: ServiceAccount
+  name: configurator
+  namespace: system

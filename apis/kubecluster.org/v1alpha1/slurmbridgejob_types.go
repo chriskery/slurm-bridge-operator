@@ -45,6 +45,15 @@ type SlurmBridgeJobSpec struct {
 	RunAsUser    *int64 `json:"runAsUser,omitempty"`
 	RunAsGroup   *int64 `json:"runAsGroup,omitempty"`
 
+	Array         string `json:"array,omitempty"`
+	CpusPerTask   int64  `json:"cpusPerTask,omitempty"`
+	Ntasks        int64  `json:"ntasks,omitempty"`
+	NtasksPerNode int64  `json:"ntasksPerNode,omitempty"`
+	Nodes         int64  `json:"nodes,omitempty"`
+	WorkingDir    string `json:"workingDir,omitempty"`
+	MemPerCpu     int64  `json:"memPerCpu,omitempty"`
+	Gres          string `json:"gres,omitempty"`
+	Licenses      string `json:"licenses,omitempty"`
 	// Result may be specified for an optional result-fetcher collection step.
 	// When specified, after job is completed all result-fetcher will be downloaded from Slurm
 	// cluster with respect to this configuration.

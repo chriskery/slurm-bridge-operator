@@ -36,7 +36,7 @@ maek install
 ###Build and push your image to the location specified by `IMG`.
 make docker-build docker-push IMG=<some-registry>/slurm-agent-bridge-operator:tag
 ###Deploy the controller to the cluster with the image specified by `IMG`.
-make deploy IMG=<some-registry>/slurm-agent-bridge-operator:tag
+make manager IMG=<some-registry>/slurm-agent-bridge-operator:tag
 ```
 
 3. Build and install slurm agent on the slurm login node as a proxy between kubernetes and slurm cluster.

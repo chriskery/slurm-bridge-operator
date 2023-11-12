@@ -38,10 +38,13 @@ var DefaultTolerations = []corev1.Toleration{
 
 // Resources describes job resources which will be transformed into k8s pod affinity.
 type Resources struct {
-	Nodes      int64
-	MemPerNode int64
-	CPUPerNode int64
-	WallTime   time.Duration
+	Nodes         int64
+	Array         string `json:"array,omitempty"`
+	CpusPerTask   int64  `json:"cpusPerTask,omitempty"`
+	Ntasks        int64  `json:"ntasks,omitempty"`
+	NtasksPerNode int64  `json:"ntasksPerNode,omitempty"`
+	MemPerCpu     int64  `json:"mem,omitempty"`
+	WallTime      time.Duration
 }
 
 // AffinityForResources returns k8s affinity for requested resources

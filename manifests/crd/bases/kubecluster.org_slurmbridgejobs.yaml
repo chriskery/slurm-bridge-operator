@@ -44,6 +44,27 @@ spec:
           spec:
             description: SlurmBridgeJobSpec defines the desired state of SlurmBridgeJob
             properties:
+              array:
+                type: string
+              cpusPerTask:
+                format: int64
+                type: integer
+              gres:
+                type: string
+              licenses:
+                type: string
+              memPerCpu:
+                format: int64
+                type: integer
+              nodes:
+                format: int64
+                type: integer
+              ntasks:
+                format: int64
+                type: integer
+              ntasksPerNode:
+                format: int64
+                type: integer
               partition:
                 type: string
               result:
@@ -1645,6 +1666,8 @@ spec:
                 format: int64
                 type: integer
               sbatchScript:
+                type: string
+              workingDir:
                 type: string
             required:
             - partition

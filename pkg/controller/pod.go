@@ -4,33 +4,30 @@ import (
 	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
 )
 
 var errAffinityIsNotRequired = errors.New("affinity selectors is not required")
 
 func (r *SlurmBridgeJobReconciler) newPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*corev1.Pod, error) {
-	requiredResources, err := extractBatchResources(sjb.Spec.SbatchScript)
+	requiredResources, err := extractBatchResourcesFromScript(sjb.Spec.SbatchScript)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not extract required resources")
 	}
 	setDefaultRequireResource(requiredResources)
+	resourceList := r.genResourceListForPod(sjb.Spec, requiredResources)
 
 	affinity, err := affinityForSj(sjb, *requiredResources)
 	if err != nil && !errors.Is(err, errAffinityIsNotRequired) {
 		return nil, errors.Wrap(err, "could not form slurm-agent job pod affinity")
 	}
 
-	resourceList := corev1.ResourceList{}
-	resourceList[corev1.ResourceCPU] = resource.MustParse(strconv.Itoa(int(requiredResources.Nodes * requiredResources.CPUPerNode)))
-	resourceList[corev1.ResourceMemory] = resource.MustParse(strconv.Itoa(int(requiredResources.Nodes * requiredResources.MemPerNode)))
-
+	labels := r.getResourceRequestLabelsForPod(sjb.Spec)
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      sjb.Name,
 			Namespace: sjb.Namespace,
+			Labels:    labels,
 		},
 		Spec: corev1.PodSpec{
 			Affinity: affinity,
@@ -56,8 +53,11 @@ func setDefaultRequireResource(requiredResources *v1alpha1.Resources) {
 	if requiredResources.Nodes == 0 {
 		requiredResources.Nodes = 1
 	}
-	if requiredResources.CPUPerNode == 0 {
-		requiredResources.CPUPerNode = 1
+	if requiredResources.CpusPerTask == 0 {
+		requiredResources.CpusPerTask = 1
+	}
+	if requiredResources.MemPerCpu == 0 {
+		requiredResources.MemPerCpu = 500
 	}
 }
 

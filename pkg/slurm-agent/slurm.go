@@ -149,15 +149,21 @@ type SbatchRequest struct {
 	// Bash script that will be submitted to a workload manager.
 	Script string `protobuf:"bytes,1,opt,name=script,proto3" json:"script,omitempty"`
 	// Partition where job should be submitted.
-	Partition  string `protobuf:"bytes,2,opt,name=partition,proto3" json:"partition,omitempty"`
-	RunAsUser  string `protobuf:"bytes,4,opt,name=run_as_user,json=runAsUser,proto3" json:"run_as_user,omitempty"`
-	RunAsGroup string `protobuf:"bytes,4,opt,name=run_as_user,json=runAsGroup,proto3" json:"run_as_group,omitempty"`
+	Partition     string `protobuf:"bytes,2,opt,name=partition,proto3" json:"partition,omitempty"`
+	RunAsUser     string `protobuf:"bytes,4,opt,name=run_as_user,json=runAsUser,proto3" json:"run_as_user,omitempty"`
+	RunAsGroup    string `protobuf:"bytes,4,opt,name=run_as_user,json=runAsGroup,proto3" json:"run_as_group,omitempty"`
+	CpufsPerTask  int64  `protobuf:"varint,7,opt,name=cpufs_per_task,json=cpufsPerTask,proto3" json:"cpufs_per_task,omitempty"`
+	MemPerCpu     int64  `protobuf:"varint,8,opt,name=mem_per_cpu,json=memPerCpu,proto3" json:"mem_per_cpu,omitempty"`
+	NtasksPerNode int64  `protobuf:"varint,9,opt,name=ntasks_per_node,json=ntasksPerNode,proto3" json:"ntasks_per_node,omitempty"`
+	Array         string `protobuf:"bytes,10,opt,name=array,proto3" json:"array,omitempty"`
+	Ntasks        int64  `protobuf:"varint,11,opt,name=ntasks,proto3" json:"ntasks,omitempty"`
+	Nodes         int64  `protobuf:"varint,12,opt,name=nodes,proto3" json:"nodes,omitempty"`
 }
 
 // SBatch submits batch job and returns job id if succeeded.
 func (*Client) SBatch(req *SbatchRequest) (int64, error) {
-	opt := getSbatchOpt(req)
-	cmd := exec.Command(sbatchBinaryName, "--parsable", opt)
+	opts := getSbatchOpts(req)
+	cmd := exec.Command(sbatchBinaryName, opts...)
 	cmd.Stdin = bytes.NewBufferString(req.Script)
 
 	out, err := cmd.CombinedOutput()
@@ -176,18 +182,37 @@ func (*Client) SBatch(req *SbatchRequest) (int64, error) {
 	return int64(id), nil
 }
 
-func getSbatchOpt(req *SbatchRequest) string {
-	var partitionOpt string
+func getSbatchOpts(req *SbatchRequest) []string {
+	var opts []string
+	opts = append(opts, "--parsable")
 	if req.Partition != "" {
-		partitionOpt = "--partition=" + req.Partition
+		opts = append(opts, "--partition="+req.Partition)
 	}
 	if req.RunAsUser != "" {
-		partitionOpt = "--uid=" + req.RunAsUser
+		opts = append(opts, "--uid="+req.RunAsUser)
 	}
 	if req.RunAsGroup != "" {
-		partitionOpt = "--gid=" + req.RunAsGroup
+		opts = append(opts, "--gid="+req.RunAsGroup)
 	}
-	return partitionOpt
+	if req.Array != "" {
+		opts = append(opts, "--array="+req.Array)
+	}
+	if req.CpufsPerTask > 0 {
+		opts = append(opts, "--cpus-per-task="+strconv.Itoa(int(req.CpufsPerTask)))
+	}
+	if req.MemPerCpu > 0 {
+		opts = append(opts, "--mem-per-cpu="+strconv.Itoa(int(req.MemPerCpu)))
+	}
+	if req.Nodes > 0 {
+		opts = append(opts, "--nodes="+strconv.Itoa(int(req.Nodes)))
+	}
+	if req.Ntasks > 0 {
+		opts = append(opts, "--ntasks="+strconv.Itoa(int(req.Ntasks)))
+	}
+	if req.NtasksPerNode > 0 {
+		opts = append(opts, "--ntasks-per-node="+strconv.Itoa(int(req.NtasksPerNode)))
+	}
+	return opts
 }
 
 // SCancel cancels batch job.

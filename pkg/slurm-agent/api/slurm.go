@@ -91,10 +91,16 @@ func (s *Slurm) SubmitJob(ctx context.Context, req *workload.SubmitJobRequest) (
 	value, ok := s.knownJobs.Load(req.Uid)
 	if !ok {
 		id, err := s.client.SBatch(&slurm_agent.SbatchRequest{
-			Script:     req.Script,
-			Partition:  req.Partition,
-			RunAsUser:  req.RunAsUser,
-			RunAsGroup: req.RunAsGroup,
+			Script:        req.Script,
+			Partition:     req.Partition,
+			RunAsUser:     req.RunAsUser,
+			RunAsGroup:    req.RunAsGroup,
+			CpufsPerTask:  req.CpufsPerTask,
+			MemPerCpu:     req.MemPerCpu,
+			NtasksPerNode: req.NtasksPerNode,
+			Array:         req.Array,
+			Ntasks:        req.Ntasks,
+			Nodes:         req.Nodes,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "could not submit sbatch script")

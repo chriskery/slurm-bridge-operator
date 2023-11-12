@@ -28,6 +28,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -46,6 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"strconv"
 	"time"
 )
 
@@ -418,6 +420,70 @@ func (r *SlurmBridgeJobReconciler) getJobResultContainers(sjb *v1alpha1.SlurmBri
 		})
 	}
 	return containers
+}
+
+func (r *SlurmBridgeJobReconciler) genResourceListForPod(spec v1alpha1.SlurmBridgeJobSpec, resources *v1alpha1.Resources) corev1.ResourceList {
+	if spec.Nodes > 0 {
+		resources.Nodes = spec.Nodes
+	}
+	if spec.CpusPerTask > 0 {
+		resources.CpusPerTask = spec.CpusPerTask
+	}
+	if spec.MemPerCpu > 0 {
+		resources.MemPerCpu = spec.MemPerCpu
+	}
+	if spec.NtasksPerNode > 0 {
+		resources.NtasksPerNode = spec.NtasksPerNode
+	}
+	if len(spec.Array) > 0 {
+		resources.Array = spec.Array
+	}
+
+	if spec.Ntasks > 0 {
+		resources.Ntasks = spec.Ntasks
+	}
+
+	var cpuCount int64
+	if resources.Ntasks > 0 {
+		cpuCount = resources.CpusPerTask * resources.Ntasks
+	} else if resources.NtasksPerNode > 0 {
+		cpuCount = resources.CpusPerTask * resources.NtasksPerNode * resources.Nodes
+	}
+
+	if len(resources.Array) > 0 {
+		arrayLen := parseArrayLen(resources.Array)
+		cpuCount *= arrayLen
+	}
+
+	resourceList := corev1.ResourceList{}
+	resourceList[corev1.ResourceCPU] = resource.MustParse(strconv.Itoa(int(cpuCount)))
+	resourceList[corev1.ResourceMemory] = resource.MustParse(strconv.Itoa(int(cpuCount * resources.MemPerCpu * 1024 * 1024)))
+	return resourceList
+}
+
+func (r *SlurmBridgeJobReconciler) getResourceRequestLabelsForPod(spec v1alpha1.SlurmBridgeJobSpec) map[string]string {
+	labels := make(map[string]string)
+
+	if spec.Nodes > 0 {
+		labels[common.LabelsResourceRequestNodes] = strconv.Itoa(int(spec.Nodes))
+	}
+	if spec.CpusPerTask > 0 {
+		labels[common.LabelsResourceRequestCpusPerTask] = strconv.Itoa(int(spec.CpusPerTask))
+	}
+	if spec.MemPerCpu > 0 {
+		labels[common.LabelsResourceRequestMemPerCpu] = strconv.Itoa(int(spec.MemPerCpu))
+	}
+	if spec.NtasksPerNode > 0 {
+		labels[common.LabelsResourceRequestNTasksPerNode] = strconv.Itoa(int(spec.NtasksPerNode))
+	}
+	if len(spec.Array) > 0 {
+		labels[common.LabelsResourceRequestArray] = spec.Array
+	}
+	if spec.Ntasks > 0 {
+		labels[common.LabelsResourceRequestNTasks] = strconv.Itoa(int(spec.Ntasks))
+	}
+
+	return labels
 }
 
 func isFinishedFetchResult(status string) bool {
