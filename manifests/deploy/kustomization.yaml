@@ -3,6 +3,7 @@ resources:
 - configurator-role.yaml
 - configurator-role_binding.yaml
 - configurator-service-account.yaml
+- slurm-virtual-kubelet-rbac.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:

@@ -55,8 +55,8 @@ manifests: controller-gen ## Generate Webhookmanifestsuration, ClusterRole and C
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate/boilerplate.go.txt" paths="./..."
-	#hack/update-codegen.sh
-	#$(MAKE) apidoc
+	hack/update-codegen.sh
+	$(MAKE) apidoc
 
 .PHONY: apidoc
 apidoc:
@@ -209,3 +209,6 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
+.PHONY: restart
+restart:   ## Download envtest-setup locally if necessary.
+	kubectl get pods -n  $(NAMESPACE) | awk '{print $$1}' | xargs kubectl delete pod -n $(NAMESPACE)

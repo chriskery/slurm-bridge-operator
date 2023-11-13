@@ -35,7 +35,7 @@ cd slurm-bridge-operator
 maek install
 ###Build and push your image to the location specified by `IMG`.
 make docker-build docker-push IMG=<some-registry>/slurm-agent-bridge-operator:tag
-###Deploy the controller to the cluster with the image specified by `IMG`.
+###Deploy the slurm-bridge-operator to the cluster with the image specified by `IMG`.
 make manager IMG=<some-registry>/slurm-agent-bridge-operator:tag
 ```
 

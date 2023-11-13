@@ -29,7 +29,6 @@ import (
 	"github.com/chriskery/slurm-bridge-operator/cmd/slurm-virtual-kubelet/app/options"
 	utilfs "github.com/chriskery/slurm-bridge-operator/pkg/filesystem"
 	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis"
 	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/configfiles"
 	"github.com/coreos/go-systemd/v22/daemon"
 	"github.com/pkg/errors"
@@ -201,7 +200,7 @@ func setDefaultSlurmVKFlags(flags *options.SlurmVirtualKubeletFlags) error {
 	for labelKey, labelValue := range v1alpha1.DefaultNodeSelectors {
 		flags.NodeLabels[labelKey] = labelValue
 	}
-	flags.NodeLabels["alpha.service-controller.kubernetes.io/exclude-balancer"] = "true"
+	flags.NodeLabels["alpha.service-slurm-bridge-operator.kubernetes.io/exclude-balancer"] = "true"
 	flags.NodeLabels["node.kubernetes.io/exclude-from-external-load-balancers"] = "true"
 	flags.NodeLabels["kubernetes.io/role"] = "slurm-bridge"
 	flags.NodeLabels[v1.LabelHostname] = hostName
@@ -235,7 +234,7 @@ func newFakeFlagSet(fs *pflag.FlagSet) *pflag.FlagSet {
 // We must enforce flag precedence by re-parsing the command line into the new object.
 // This is necessary to preserve backwards-compatibility across binary upgrades.
 // See issue #56171 for more details.
-func kubeletConfigFlagPrecedence(kc *apis.SlurmVirtualKubeletConfiguration, args []string) error {
+func kubeletConfigFlagPrecedence(kc *v1alpha1.SlurmVirtualKubeletConfiguration, args []string) error {
 	// We use a throwaway kubeletFlags and a fake global flagset to avoid double-parses,
 	// as some Set implementations accumulate values from multiple flag invocations.
 	fs := newFakeFlagSet(newFlagSetWithGlobals())
@@ -252,7 +251,7 @@ func kubeletConfigFlagPrecedence(kc *apis.SlurmVirtualKubeletConfiguration, args
 	return nil
 }
 
-func loadConfigFile(name string) (*apis.SlurmVirtualKubeletConfiguration, error) {
+func loadConfigFile(name string) (*v1alpha1.SlurmVirtualKubeletConfiguration, error) {
 	const errFmt = "failed to load Kubelet config file %s, error %v"
 	// compute absolute path based on current working dir
 	kubeletConfigFile, err := filepath.Abs(name)

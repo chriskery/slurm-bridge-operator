@@ -19,8 +19,10 @@ package options
 
 import (
 	"fmt"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis/scheme"
+	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
+	vklabels "github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/labels"
+	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/scheme"
+	vkvalidation "github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/validation"
 	"github.com/mitchellh/go-homedir"
 	"github.com/virtual-kubelet/virtual-kubelet/errdefs"
 	corev1 "k8s.io/api/core/v1"
@@ -32,9 +34,6 @@ import (
 	"time"
 
 	"github.com/spf13/pflag"
-
-	vklabels "github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis/labels"
-	vkvalidation "github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis/validation"
 
 	utilflag "github.com/chriskery/slurm-bridge-operator/pkg/common/flag"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -213,12 +212,12 @@ func getLabelNamespace(key string) string {
 }
 
 // NewSlurmVirtualKubeletConfiguration will create a new KubeletConfiguration with default values
-func NewSlurmVirtualKubeletConfiguration() (*apis.SlurmVirtualKubeletConfiguration, error) {
+func NewSlurmVirtualKubeletConfiguration() (*v1alpha1.SlurmVirtualKubeletConfiguration, error) {
 	scheme, _, err := scheme.NewSchemeAndCodecs()
 	if err != nil {
 		return nil, err
 	}
-	config := &apis.SlurmVirtualKubeletConfiguration{}
+	config := &v1alpha1.SlurmVirtualKubeletConfiguration{}
 	scheme.Default(config)
 	return config, nil
 }
@@ -227,7 +226,7 @@ func NewSlurmVirtualKubeletConfiguration() (*apis.SlurmVirtualKubeletConfigurati
 // a kubelet. These can either be set via command line or directly.
 type SlurmVirtualKubeletServer struct {
 	SlurmVirtualKubeletFlags
-	apis.SlurmVirtualKubeletConfiguration
+	v1alpha1.SlurmVirtualKubeletConfiguration
 }
 
 // ValidateKubeletServer validates configuration of SlurmVirtualKubeletServer and returns an error if the input configuration is invalid.
@@ -272,7 +271,7 @@ func (f *SlurmVirtualKubeletFlags) AddFlags(mainfs *pflag.FlagSet) {
 }
 
 // AddKubeletConfigFlags adds flags for a specific kubeletconfig.KubeletConfiguration to the specified FlagSet
-func AddKubeletConfigFlags(mainfs *pflag.FlagSet, c *apis.SlurmVirtualKubeletConfiguration) {
+func AddKubeletConfigFlags(mainfs *pflag.FlagSet, c *v1alpha1.SlurmVirtualKubeletConfiguration) {
 	fs := pflag.NewFlagSet("", pflag.ExitOnError)
 	defer func() {
 		// All KubeletConfiguration flags are now deprecated, and any new flags that point to

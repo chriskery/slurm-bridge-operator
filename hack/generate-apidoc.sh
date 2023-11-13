@@ -21,9 +21,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-SCRIPT_ROOT=$(dirname ${BASH_SOURCE})/..
+SCRIPT_ROOT=$(dirname "${BASH_SOURCE}")/..
 
-cd ${SCRIPT_ROOT}
+cd "${SCRIPT_ROOT}"
 
 CRD_REF_GEN_VERSION=v0.0.8
 go install github.com/elastic/crd-ref-docs@${CRD_REF_GEN_VERSION}

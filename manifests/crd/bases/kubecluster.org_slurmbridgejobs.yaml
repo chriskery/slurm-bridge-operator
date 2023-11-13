@@ -536,7 +536,7 @@ spec:
                                       specify either: * An existing VolumeSnapshot
                                       object (snapshot.storage.k8s.io/VolumeSnapshot)
                                       * An existing PVC (PersistentVolumeClaim) If
-                                      the provisioner or an external controller can
+                                      the provisioner or an external slurm-bridge-operator can
                                       support the specified data source, it will create
                                       a new volume based on the contents of the specified
                                       data source. When the AnyVolumeDataSource feature

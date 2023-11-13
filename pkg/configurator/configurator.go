@@ -257,31 +257,18 @@ func (c *SlurmBridgeConfigurator) virtualKubeletPodTemplate(partitionName string
 						//},
 					},
 					VolumeMounts: []v1.VolumeMount{
-						//{
-						//	Name:      "syslurm-mount",
-						//	MountPath: "/syslurm",
-						//},
 						{
 							Name:      "kubelet-crt",
-							MountPath: "/kubelet.crt",
+							MountPath: "/var/lib/kubelet/pki/kubelet.crt",
 						},
 						{
 							Name:      "kubelet-key",
-							MountPath: "/kubelet.key",
+							MountPath: "/var/lib/kubelet/pki/kubelet.key",
 						},
 					},
 				},
 			},
 			Volumes: []v1.Volume{
-				//{
-				//	Name: "syslurm-mount", // directory with red-box socket
-				//	VolumeSource: v1.VolumeSource{
-				//		HostPath: &v1.HostPathVolumeSource{
-				//			Path: "/var/run/syslurm",
-				//			Type: &[]v1.HostPathType{v1.HostPathDirectory}[0],
-				//		},
-				//	},
-				//},
 				{
 					Name: "kubelet-crt", // we need certificates for pod rest api, k8s gets pods logruss via rest api
 					VolumeSource: v1.VolumeSource{

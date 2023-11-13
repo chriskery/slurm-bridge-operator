@@ -29,7 +29,7 @@ const (
 	SlurmBridgeJobSingular = "SlurmBridgeJob"
 
 	// ControllerNameLabel represents the label key for the operator name, e.g. tf-operator, mpi-operator, etc.
-	ControllerNameLabel = "kubeclusetr.org/controller-name"
+	ControllerNameLabel = "kubeclusetr.org/slurm-bridge-operator-name"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -103,6 +103,7 @@ type SlurmBridgeJobStatus struct {
 //+kubebuilder:subresource:status
 
 // SlurmBridgeJob is the Schema for the slurmbridgejobs API
+// +k8s:openapi-gen=true
 type SlurmBridgeJob struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

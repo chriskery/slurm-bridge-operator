@@ -67,5 +67,5 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-      serviceAccountName: controller-manager
+      serviceAccountName: slurm-bridge-operator-manager
       terminationGracePeriodSeconds: 10

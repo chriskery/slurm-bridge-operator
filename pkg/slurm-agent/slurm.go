@@ -17,6 +17,7 @@ package slurm_agent
 import (
 	"bytes"
 	"github.com/chriskery/slurm-bridge-operator/pkg/common/tail"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/execabs"
 	"io"
 	"log"
@@ -164,6 +165,7 @@ type SbatchRequest struct {
 func (*Client) SBatch(req *SbatchRequest) (int64, error) {
 	opts := getSbatchOpts(req)
 	cmd := exec.Command(sbatchBinaryName, opts...)
+	logrus.Info("Sbatch: \"", req.Script, "\",Args: ", opts)
 	cmd.Stdin = bytes.NewBufferString(req.Script)
 
 	out, err := cmd.CombinedOutput()

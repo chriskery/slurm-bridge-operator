@@ -18,8 +18,8 @@ package codec
 
 import (
 	"fmt"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis/scheme"
+	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
+	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/scheme"
 	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,7 +29,7 @@ import (
 )
 
 // EncodeKubeletConfig encodes an internal KubeletConfiguration to an external YAML representation.
-func EncodeKubeletConfig(internal *apis.SlurmVirtualKubeletConfiguration, targetVersion schema.GroupVersion) ([]byte, error) {
+func EncodeKubeletConfig(internal *v1alpha1.SlurmVirtualKubeletConfiguration, targetVersion schema.GroupVersion) ([]byte, error) {
 	encoder, err := NewKubeletconfigYAMLEncoder(targetVersion)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func NewKubeletconfigYAMLEncoder(targetVersion schema.GroupVersion) (runtime.Enc
 }
 
 // DecodeKubeletConfiguration decodes a serialized KubeletConfiguration to the internal type.
-func DecodeKubeletConfiguration(kubeletCodecs *serializer.CodecFactory, data []byte) (*apis.SlurmVirtualKubeletConfiguration, error) {
+func DecodeKubeletConfiguration(kubeletCodecs *serializer.CodecFactory, data []byte) (*v1alpha1.SlurmVirtualKubeletConfiguration, error) {
 	var (
 		obj runtime.Object
 		gvk *schema.GroupVersionKind
@@ -74,7 +74,7 @@ func DecodeKubeletConfiguration(kubeletCodecs *serializer.CodecFactory, data []b
 		}
 
 		var lenientErr error
-		_, lenientCodecs, lenientErr := codec.NewLenientSchemeAndCodecs(apis.AddToScheme)
+		_, lenientCodecs, lenientErr := codec.NewLenientSchemeAndCodecs(v1alpha1.AddToScheme)
 
 		if lenientErr != nil {
 			return nil, lenientErr
@@ -90,7 +90,7 @@ func DecodeKubeletConfiguration(kubeletCodecs *serializer.CodecFactory, data []b
 		klog.InfoS("Using lenient decoding as strict decoding failed", "err", err)
 	}
 
-	internalKC, ok := obj.(*apis.SlurmVirtualKubeletConfiguration)
+	internalKC, ok := obj.(*v1alpha1.SlurmVirtualKubeletConfiguration)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast object to KubeletConfiguration, unexpected type: %v", gvk)
 	}

@@ -1,0 +1,169 @@
+// Generated documentation. Please do not edit.
+:anchor_prefix: k8s-api
+
+[id="{p}-api-reference"]
+= API Reference
+
+.Packages
+- xref:{anchor_prefix}-kubecluster-org-v1alpha1[$$kubecluster.org/v1alpha1$$]
+
+
+[id="{anchor_prefix}-kubecluster-org-v1alpha1"]
+== kubecluster.org/v1alpha1
+
+Package v1alpha1 contains API Schema definitions for the kubecluster.org v1alpha1 API group
+
+.Resource Types
+- xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejob[$$SlurmBridgeJob$$]
+- xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejoblist[$$SlurmBridgeJobList$$]
+
+
+=== Definitions
+
+[id="{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-jobresult"]
+==== JobResult 
+
+JobResult is a schema for result-fetcher collection.
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejobspec[$$SlurmBridgeJobSpec$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`volume`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#volume-v1-core[$$Volume$$]__ | Mount is a directory where job result-fetcher will be stored. After result-fetcher collection all job generated files can be found in Mount/<SlurmJob.Name> directory.
+|===
+
+
+
+
+[id="{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejob"]
+==== SlurmBridgeJob 
+
+SlurmBridgeJob is the Schema for the slurmbridgejobs API
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejoblist[$$SlurmBridgeJobList$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`apiVersion`* __string__ | `kubecluster.org/v1alpha1`
+| *`kind`* __string__ | `SlurmBridgeJob`
+| *`TypeMeta`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#typemeta-v1-meta[$$TypeMeta$$]__ | 
+| *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
+
+| *`spec`* __xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejobspec[$$SlurmBridgeJobSpec$$]__ | 
+| *`status`* __xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejobstatus[$$SlurmBridgeJobStatus$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejoblist"]
+==== SlurmBridgeJobList 
+
+SlurmBridgeJobList contains a list of SlurmBridgeJob
+
+
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`apiVersion`* __string__ | `kubecluster.org/v1alpha1`
+| *`kind`* __string__ | `SlurmBridgeJobList`
+| *`TypeMeta`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#typemeta-v1-meta[$$TypeMeta$$]__ | 
+| *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#listmeta-v1-meta[$$ListMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
+
+| *`items`* __xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejob[$$SlurmBridgeJob$$] array__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejobspec"]
+==== SlurmBridgeJobSpec 
+
+SlurmBridgeJobSpec defines the desired state of SlurmBridgeJob
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejob[$$SlurmBridgeJob$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`partition`* __string__ | 
+| *`sbatchScript`* __string__ | 
+| *`runAsUser`* __integer__ | 
+| *`runAsGroup`* __integer__ | 
+| *`array`* __string__ | 
+| *`cpusPerTask`* __integer__ | 
+| *`ntasks`* __integer__ | 
+| *`ntasksPerNode`* __integer__ | 
+| *`nodes`* __integer__ | 
+| *`workingDir`* __string__ | 
+| *`memPerCpu`* __integer__ | 
+| *`gres`* __string__ | 
+| *`licenses`* __string__ | 
+| *`result`* __xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-jobresult[$$JobResult$$]__ | Result may be specified for an optional result-fetcher collection step. When specified, after job is completed all result-fetcher will be downloaded from Slurm cluster with respect to this configuration.
+|===
+
+
+[id="{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejobstatus"]
+==== SlurmBridgeJobStatus 
+
+SlurmBridgeJobStatus defines the observed state of SlurmBridgeJob
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejob[$$SlurmBridgeJob$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`state`* __string__ | 
+| *`subjobStatus`* __object (keys:SlurmJobId, values:xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmsubjobstatus[$$SlurmSubjobStatus$$])__ | 
+| *`fetchResult`* __boolean__ | 
+| *`fetchResultStatus`* __string__ | 
+| *`clusterEndPoint`* __string__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmsubjobstatus"]
+==== SlurmSubjobStatus 
+
+
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-chriskery-slurm-bridge-operator-apis-kubecluster-org-v1alpha1-slurmbridgejobstatus[$$SlurmBridgeJobStatus$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`id`* __string__ | INSERT ADDITIONAL STATUS FIELD - define observed state of cluster Important: Run "make" to regenerate code after modifying this file
+| *`userId`* __string__ | 
+| *`arrayJobID`* __string__ | 
+| *`name`* __string__ | 
+| *`exitCode`* __string__ | 
+| *`state`* __string__ | 
+| *`submitTime`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#time-v1-meta[$$Time$$]__ | 
+| *`startTime`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#time-v1-meta[$$Time$$]__ | 
+| *`runTime`* __string__ | 
+| *`timeLimit`* __string__ | 
+| *`WorkDir`* __string__ | 
+| *`stdOut`* __string__ | 
+| *`stdErr`* __string__ | 
+| *`partition`* __string__ | 
+| *`nodeList`* __string__ | 
+| *`batchHost`* __string__ | 
+| *`numNodes`* __string__ | 
+|===
+
+
+
+

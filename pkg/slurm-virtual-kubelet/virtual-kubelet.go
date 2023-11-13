@@ -3,8 +3,8 @@ package slurm_virtual_kubelet
 import (
 	"context"
 	"crypto/tls"
+	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
 	"github.com/chriskery/slurm-bridge-operator/cmd/slurm-virtual-kubelet/app/options"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis"
 	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/events"
 	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/manager"
 	"github.com/chriskery/slurm-bridge-operator/pkg/workload"
@@ -41,7 +41,7 @@ import (
 )
 
 // PreInitRuntimeService will init runtime service before RunKubelet.
-func PreInitRuntimeService(_ *apis.SlurmVirtualKubeletConfiguration) error {
+func PreInitRuntimeService(_ *v1alpha1.SlurmVirtualKubeletConfiguration) error {
 	return nil
 }
 
@@ -260,7 +260,7 @@ func (vk *SlurmVirtualKubelet) Run() {
 		ServiceInformer:   serviceInformer,
 	})
 	if err != nil {
-		klog.ErrorS(err, "error setting up pod controller")
+		klog.ErrorS(err, "error setting up pod slurm-bridge-operator")
 		os.Exit(1)
 	}
 
@@ -315,7 +315,7 @@ func waitFor(time time.Duration, ready <-chan struct{}) error {
 	defer cancel()
 
 	// Wait for the VK / PC close the the ready channel, or time out and return
-	log.G(ctx).Info("Waiting for pod controller / VK to be ready")
+	log.G(ctx).Info("Waiting for pod slurm-bridge-operator / VK to be ready")
 
 	select {
 	case <-ready:

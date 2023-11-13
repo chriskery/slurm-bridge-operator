@@ -18,8 +18,8 @@ package configfiles
 
 import (
 	"fmt"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis"
-	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/apis/scheme"
+	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
+	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-virtual-kubelet/scheme"
 	"path/filepath"
 
 	utilfs "github.com/chriskery/slurm-bridge-operator/pkg/filesystem"
@@ -30,7 +30,7 @@ import (
 // Loader loads configuration from a storage layer
 type Loader interface {
 	// Load loads and returns the KubeletConfiguration from the storage layer, or an error if a configuration could not be loaded
-	Load() (*apis.SlurmVirtualKubeletConfiguration, error)
+	Load() (*v1alpha1.SlurmVirtualKubeletConfiguration, error)
 }
 
 // fsLoader loads configuration from `configDir`
@@ -57,7 +57,7 @@ func NewFsLoader(fs utilfs.Filesystem, kubeletFile string) (Loader, error) {
 	}, nil
 }
 
-func (loader *fsLoader) Load() (*apis.SlurmVirtualKubeletConfiguration, error) {
+func (loader *fsLoader) Load() (*v1alpha1.SlurmVirtualKubeletConfiguration, error) {
 	data, err := loader.fs.ReadFile(loader.kubeletFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read kubelet config file %q, error: %v", loader.kubeletFile, err)
@@ -74,7 +74,7 @@ func (loader *fsLoader) Load() (*apis.SlurmVirtualKubeletConfiguration, error) {
 	}
 
 	// make all paths absolute
-	resolveRelativePaths(apis.SlurmVirtualKubeletConfigurationPathRefs(kc), filepath.Dir(loader.kubeletFile))
+	resolveRelativePaths(v1alpha1.SlurmVirtualKubeletConfigurationPathRefs(kc), filepath.Dir(loader.kubeletFile))
 	return kc, nil
 }
 

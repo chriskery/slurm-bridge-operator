@@ -42,6 +42,7 @@ GET_PKG_LOCATION() {
   echo "${pkg_location}"
 }
 
+# shellcheck disable=SC2005
 echo $(GET_PKG_LOCATION "k8s.io/code-generator")
 # Grab code-generator version from go.sum
 CODEGEN_PKG="$(GET_PKG_LOCATION "k8s.io/code-generator")"
@@ -79,7 +80,7 @@ fi
 cd "${SCRIPT_ROOT}"
 "${CODEGEN_PKG}"/generate-groups.sh "client,lister,informer" \
     github.com/chriskery/slurm-bridge-operator/pkg/client github.com/chriskery/slurm-bridge-operator/apis \
-    slurm-bridge-operator.org:v1alpha1 \
+    kubecluster.org:v1alpha1 \
     --output-base "${TEMP_DIR}" \
     --go-header-file hack/boilerplate/boilerplate.go.txt
 
@@ -90,9 +91,9 @@ cd "${SCRIPT_ROOT}"
 
 # $(go env GOPATH)/bin/defaulter-gen is automatically built from ${CODEGEN_PKG}/generate-groups.sh
 echo "Generating defaulters for v1alpha1"
-$(go env GOPATH)/bin/defaulter-gen --input-dirs github.com/chriskery/slurm-bridge-operator/apis/slurm-bridge-operator.org/v1alpha1 \
+$(go env GOPATH)/bin/defaulter-gen --input-dirs github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1 \
     -O zz_generated.defaults \
-    --output-package github.com/chriskery/slurm-bridge-operator/apis/slurm-bridge-operator.org/v1alpha1\
+    --output-package github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1\
     --go-header-file hack/boilerplate/boilerplate.go.txt "$@" \
     --output-base "${TEMP_DIR}"
 
@@ -104,9 +105,9 @@ echo "Building openapi-gen"
 go build -o openapi-gen "${OPENAPI_PKG}"/cmd/openapi-gen
 
 echo "Generating OpenAPI specification for v1alpha1"
-./openapi-gen --input-dirs github.com/chriskery/slurm-bridge-operator/apis/slurm-bridge-operator.org/v1alpha1\
+./openapi-gen --input-dirs github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1\
     --report-filename=hack/violation_exception.list \
-    --output-package github.com/chriskery/slurm-bridge-operator/apis/slurm-bridge-operator.org/v1alpha1\
+    --output-package github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1\
     --go-header-file hack/boilerplate/boilerplate.go.txt "$@" \
     --output-base "${TEMP_DIR}"
 
