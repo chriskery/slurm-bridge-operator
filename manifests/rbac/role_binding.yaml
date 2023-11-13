@@ -15,5 +15,5 @@ roleRef:
   name: manager-role
 subjects:
 - kind: ServiceAccount
-  name: slurm-bridge-operator-manager
+  name: sbo-controller-manager
   namespace: system
