@@ -3,7 +3,6 @@ package slurm_bridge_operator
 import (
 	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
 	"github.com/chriskery/slurm-bridge-operator/pkg/common"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -20,8 +20,6 @@ import (
 	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-agent"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // extractBatchResourcesFromScript extracts resources that should be satisfied for a slurm-agent
