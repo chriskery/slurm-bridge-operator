@@ -20,6 +20,22 @@ rules:
   - apiGroups:
       - ""
     resources:
+      - nodes
+      - nodes/status
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - configmaps
+      - secrets
       - events
     verbs:
       - create
@@ -32,19 +48,8 @@ rules:
   - apiGroups:
       - ""
     resources:
-      - nodes
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - nodes/status
+      - pods
+      - pods/status
     verbs:
       - create
       - delete
