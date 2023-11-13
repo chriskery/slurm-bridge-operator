@@ -265,10 +265,10 @@ func (f *SlurmVirtualKubeletFlags) AddFlags(mainfs *pflag.FlagSet) {
 
 	fs.StringVar(&f.VirtualKubeletConfigFile, "config", f.VirtualKubeletConfigFile, "The Kubelet will load its initial configuration from this file. The path may be absolute or relative; relative paths start at the Kubelet's current working directory. Omit this flag to use the built-in default configuration values. Command-line flags override configuration from this file.")
 	fs.StringVar(&f.KubeConfig, "kubeconfig", f.KubeConfig, "Path to a kubeconfig file, specifying how to connect to the API server. Providing --kubeconfig enables API server mode, omitting --kubeconfig enables standalone mode.")
-	fs.StringVar(&f.NodeName, "hostname-override", f.NodeName, "If non-empty, will use this string as identification instead of the actual hostname. If --cloud-provider is set, the cloud provider determines the name of the node (consult cloud provider documentation to determine if and how the hostname is used).")
+	fs.StringVar(&f.NodeName, "nodename", f.NodeName, "If non-empty, will use this string as identification instead of the actual hostname. If --cloud-provider is set, the cloud provider determines the name of the node (consult cloud provider documentation to determine if and how the hostname is used).")
 	fs.StringVar(&f.NodeIP, "node-ip", f.NodeIP, "IP address (or comma-separated dual-stack IP addresses) of the node. If unset, kubelet will use the node's default IPv4 address, if any, or its default IPv6 address if it has no IPv4 addresses. You can pass '::' to make it prefer the default IPv6 address rather than the default IPv4 address.")
-	fs.StringVar(&f.AgentEndpoint, "agent-endpoint", f.AgentEndpoint, "slurm-agent agent endpoint addr.")
-	fs.StringVar(&f.SlurmPartition, "slurm-partition", f.SlurmPartition, "partition to observe.")
+	fs.StringVar(&f.AgentEndpoint, "endpoint", f.AgentEndpoint, "slurm-agent agent endpoint addr.")
+	fs.StringVar(&f.SlurmPartition, "partition", f.SlurmPartition, "partition to observe.")
 }
 
 // AddKubeletConfigFlags adds flags for a specific kubeletconfig.KubeletConfiguration to the specified FlagSet

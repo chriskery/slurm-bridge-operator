@@ -374,10 +374,6 @@ func (s *SlurmVirtualKubeletProvider) GetStatsSummary(ctx context.Context) (*sta
 	return nil, nil
 }
 
-func collectMetrics(pod *v1.Pod, info *workload.JobStepsResponse) statsv1alpha1.PodStats {
-
-}
-
 func (s *SlurmVirtualKubeletProvider) GetMetricsResource(ctx context.Context) ([]*io_prometheus_client.MetricFamily, error) {
 	return nil, nil
 }

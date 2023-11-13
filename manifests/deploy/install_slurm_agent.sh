@@ -8,6 +8,9 @@ cp bin/slurm-agent /usr/local/bin/slurm-agent
 
 sudo mkdir -p /var/run/slurm-agent
 
+mkdir -p /var/run/slurm-agent-bridge-operator/
+chown -R slurm:slurm /var/run/slurm-agent-bridge-operator/
+
 sudo sh -c 'cat  > /etc/systemd/system/slurm-agent.service <<EOF
 [Unit]
 Description=Slurm bridge operator slurm-agent
@@ -25,3 +28,4 @@ EOF'
 
 sudo systemctl start slurm-agent
 sudo systemctl status slurm-agent
+sudo systemctl enable slurm-agent

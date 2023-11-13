@@ -30,7 +30,9 @@ import (
 	"os"
 	"os/signal"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sync"
 	"time"
@@ -70,12 +72,7 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
-		HealthProbeBindAddress: probeAddr,
-	})
-
+	mgr, err := newCtrlManagerOrDie(metricsAddr, probeAddr)
 	go func() {
 		setupLog.Info("starting manager")
 		if err = mgr.Start(ctrl.SetupSignalHandler()); err != nil {
@@ -105,7 +102,6 @@ func main() {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go cf.WatchPartitions(ctx, wg, updateInterval)
-
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, unix.SIGINT, unix.SIGTERM, unix.SIGQUIT)
 
@@ -115,4 +111,26 @@ func main() {
 	wg.Wait()
 
 	logrus.Info("Configurator is finished")
+}
+
+func newCtrlManagerOrDie(metricsAddr string, probeAddr string) (manager.Manager, error) {
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme:                 scheme,
+		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
+		HealthProbeBindAddress: probeAddr,
+	})
+	if err != nil {
+		setupLog.Error(err, "problem creating manager")
+		os.Exit(1)
+	}
+
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up health check")
+		os.Exit(1)
+	}
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up ready check")
+		os.Exit(1)
+	}
+	return mgr, err
 }

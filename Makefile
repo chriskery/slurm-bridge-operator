@@ -93,13 +93,26 @@ vendor: fmt vet ## Run a controller from your host.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: vendor## Build docker image with the manager.
-	go mod vendor
 	$(CONTAINER_TOOL) build -t ${SLURM_BRIDGE_OPERATOR_IMG} -f build/bridge-operator/Dockerfile .
 	$(CONTAINER_TOOL) build -t ${CONFIGURATOR_IMG} -f build/configurator/Dockerfile .
 	$(CONTAINER_TOOL) build -t ${RESULT_FETCHER_IMG} -f build/result-fetcher/Dockerfile .
 	$(CONTAINER_TOOL) build -t ${SLURM_AGENT_IMG} -f build/slurm-agent/Dockerfile .
 	$(CONTAINER_TOOL) build -t ${SLURM_VIRTUAL_KUBELET_IMG} -f build/slurm-virtual-kubelet/Dockerfile .
 
+.PHONY: configurator
+configurator: vendor## Build docker image with the manager.
+	$(CONTAINER_TOOL) build -t ${CONFIGURATOR_IMG} -f build/configurator/Dockerfile .
+	$(CONTAINER_TOOL) push  ${CONFIGURATOR_IMG}
+
+.PHONY: sbo
+sbo: vendor## Build docker image with the manager.
+	$(CONTAINER_TOOL) build -t ${SLURM_BRIDGE_OPERATOR_IMG} -f build/bridge-operator/Dockerfile .
+	$(CONTAINER_TOOL) push  ${SLURM_BRIDGE_OPERATOR_IMG}
+
+.PHONY: svk
+svk: vendor## Build docker image with the manager.
+	$(CONTAINER_TOOL) build -t ${SLURM_VIRTUAL_KUBELET_IMG} -f build/slurm-virtual-kubelet/Dockerfile .
+	$(CONTAINER_TOOL) push  ${SLURM_VIRTUAL_KUBELET_IMG}
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.

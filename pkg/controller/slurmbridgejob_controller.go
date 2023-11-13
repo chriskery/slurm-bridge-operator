@@ -211,10 +211,6 @@ func (r *SlurmBridgeJobReconciler) SetupWithManager(mgr ctrl.Manager, controller
 	if err = c.Watch(source.Kind(mgr.GetCache(), &corev1.Pod{}), eventHandler); err != nil {
 		return err
 	}
-	// inject watching for cluster related service
-	if err = c.Watch(source.Kind(mgr.GetCache(), &corev1.ConfigMap{}), eventHandler); err != nil {
-		return err
-	}
 
 	return nil
 }

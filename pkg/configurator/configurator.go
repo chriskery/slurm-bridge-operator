@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubeclientset "k8s.io/client-go/kubernetes"
@@ -149,11 +150,20 @@ func (c *SlurmBridgeConfigurator) Reconcile(partitionsResp *workload.PartitionsR
 
 func (c *SlurmBridgeConfigurator) ReconcileCreateNodeForPartition(partitions []string) error {
 	for _, p := range partitions {
-		logrus.Printf("Creating pod for %s partition in %s namespace", p, c.VKNodeNamespace)
-		_, err := c.KubeClientSet.CoreV1().Pods(c.VKNodeNamespace).Create(context.Background(),
-			c.virtualKubeletPodTemplate(p), metav1.CreateOptions{})
-		if err != nil {
-			return errors.Wrapf(err, "could not create pod for %s partition", p)
+		_, err := c.KubeClientSet.CoreV1().Pods(c.VKNodeNamespace).Get(context.Background(),
+			partitionNodeName(p), metav1.GetOptions{})
+		if err == nil {
+			continue
+		}
+		if !k8serrors.IsNotFound(err) {
+			return err
+		} else {
+			logrus.Printf("Creating pod for %s partition in %s namespace", p, c.VKNodeNamespace)
+			_, err = c.KubeClientSet.CoreV1().Pods(c.VKNodeNamespace).Create(context.Background(),
+				c.virtualKubeletPodTemplate(p), metav1.CreateOptions{})
+			if err != nil {
+				return errors.Wrapf(err, "could not create pod for %s partition", p)
+			}
 		}
 	}
 
@@ -178,22 +188,21 @@ func (c *SlurmBridgeConfigurator) ReconcileDeleteControllingPod(nodes []string) 
 func (c *SlurmBridgeConfigurator) virtualKubeletPodTemplate(partitionName string) *v1.Pod {
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: partitionNodeName(partitionName),
+			Name:      partitionNodeName(partitionName),
+			Namespace: c.VKNodeNamespace,
 		},
 		Spec: v1.PodSpec{
 			ServiceAccountName: c.VKServiceAccount,
+			RestartPolicy:      v1.RestartPolicyAlways,
 			Containers: []v1.Container{
 				{
 					Name:            "slurm-agent-virtual-kubelet",
 					Image:           c.VKKubeletImage,
 					ImagePullPolicy: v1.PullAlways,
 					Args: []string{
-						"--nodename",
-						partitionNodeName(partitionName),
-						"--provider",
-						"wlm",
-						"--startup-timeout",
-						"10s",
+						"--nodename", partitionNodeName(partitionName),
+						"--partition", partitionName,
+						"--endpoint", c.SlurmAgentEndpoint,
 					},
 					Ports: []v1.ContainerPort{
 						{
@@ -338,5 +347,5 @@ func contains(s []string, e string) bool {
 
 // partitionNodeName forms partition name that will be used as pod and node name in k8s
 func partitionNodeName(partition string) string {
-	return fmt.Sprintf("slurm-agent-partition-%s", partition)
+	return fmt.Sprintf("slurm-partition-%s", partition)
 }

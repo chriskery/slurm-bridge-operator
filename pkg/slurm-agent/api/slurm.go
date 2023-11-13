@@ -45,7 +45,7 @@ type Slurm struct {
 	knownJobs sync.Map
 }
 
-func (s *Slurm) mustEmbedUnimplementedWorkloadManagerServer() {
+func (s *Slurm) JobState(ctx context.Context, request *workload.JobStateRequest) (*workload.JobStepsResponse, error) {
 	//TODO implement me
 	panic("implement me")
 }
