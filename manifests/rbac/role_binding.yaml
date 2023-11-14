@@ -15,5 +15,5 @@ roleRef:
   name: manager-role
 subjects:
 - kind: ServiceAccount
-  name: sbo-controller-manager
+  name: controller-manager
   namespace: system

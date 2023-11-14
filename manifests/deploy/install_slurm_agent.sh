@@ -22,7 +22,7 @@ Restart=always
 RestartSec=30
 User=slurm
 Group=slurm
-WorkingDirectory=${HOME}
+WorkingDirectory=/var/run/slurm-agent
 ExecStart=/usr/local/bin/slurm-agent
 EOF'
 

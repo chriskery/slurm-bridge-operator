@@ -23,6 +23,8 @@ import (
 	"github.com/chriskery/slurm-bridge-operator/pkg/common"
 	"github.com/chriskery/slurm-bridge-operator/pkg/common/util"
 	"github.com/chriskery/slurm-bridge-operator/pkg/workload"
+	"github.com/go-logr/logr"
+	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -93,6 +95,7 @@ type SlurmBridgeJobReconciler struct {
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;update;list;watch;create;delete
 //+kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="batch",resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
