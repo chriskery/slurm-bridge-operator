@@ -104,11 +104,15 @@ func slurmState2ContainerStatuses(pod *v1.Pod, phase v1.PodPhase, info *workload
 	containerStatuses := make([]v1.ContainerStatus, 0, len(pod.Spec.Containers))
 	for i, c := range pod.Spec.Containers {
 		containerStatus := v1.ContainerStatus{
-			Name:        c.Name,
-			State:       slurmState2ContainerState(info.Info[i]),
-			Ready:       phase == v1.PodRunning,
-			Image:       c.Image,
-			ContainerID: info.Info[i].ArrayId,
+			Name:  c.Name,
+			State: slurmState2ContainerState(info.Info[i]),
+			Ready: phase == v1.PodRunning,
+			Image: c.Image,
+		}
+		if info.Info[i].ArrayId != "" {
+			containerStatus.ContainerID = info.Info[i].ArrayId
+		} else {
+			containerStatus.ContainerID = info.Info[i].Id
 		}
 		// Add to containerStatuses
 		containerStatuses = append(containerStatuses, containerStatus)

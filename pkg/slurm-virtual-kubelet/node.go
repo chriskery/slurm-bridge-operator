@@ -194,7 +194,7 @@ func (vk *SlurmVirtualKubelet) GetPartitionCapacity(partition string) (v1.Resour
 	if gpu > 0 {
 		rl["nvidia.com/gpu"] = *resource.NewQuantity(gpu, resource.DecimalSI)
 	}
-	rl["pods"] = resource.MustParse(vk.KubeletServer.Pods)
+	rl["pods"] = *resource.NewQuantity(cpu, resource.DecimalSI)
 	return rl, nil
 }
 
