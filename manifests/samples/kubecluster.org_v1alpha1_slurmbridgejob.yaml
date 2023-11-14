@@ -13,12 +13,16 @@ spec:
   sbatchScript: |
     #!/bin/sh
     #SBATCH --nodes=1
-    #SBATCH --array 1-3
     srun hostname
     hostname
-    for i in {1..5};do echo $i && sleep 5;done
-#  runAsUser: 1003
-#  runAsGroup: 0
+    pwd
+    for i in {1..5};do echo $i && sleep 15;done
+  runAsUser: 0
+  runAsGroup: 0
+  ntasks: 3
+  workingDir: /tmp
+  memPerCpu: 500
+  cpusPerTask: 1
   result:
     volume:
       name: myresult

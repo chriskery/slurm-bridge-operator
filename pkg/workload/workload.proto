@@ -78,6 +78,7 @@ message SubmitJobRequest {
   int64 ntasks = 11;
   int64 nodes = 12;
   string job_name = 13;
+  string working_dir = 14;
 }
 
 message SubmitJobResponse {

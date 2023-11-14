@@ -69,6 +69,7 @@ func (s *SlurmVirtualKubeletProvider) newSubmitRequestForPod(pod *v1.Pod) *workl
 		submitRequest.RunAsUser = strconv.FormatInt(*pod.Spec.Containers[0].SecurityContext.RunAsUser, 10)
 	}
 	submitRequest.Script = pod.Spec.Containers[0].Command[0]
+	submitRequest.WorkingDir = pod.Spec.Containers[0].WorkingDir
 
 	labels := pod.GetLabels()
 	nodes, ok := labels[common.LabelsResourceRequestNodes]

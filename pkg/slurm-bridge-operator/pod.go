@@ -49,6 +49,7 @@ func (r *SlurmBridgeJobReconciler) newPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*c
 					Resources:       corev1.ResourceRequirements{Requests: resourceList, Limits: resourceList},
 					Command:         []string{sjb.Spec.SbatchScript},
 					SecurityContext: &corev1.SecurityContext{RunAsUser: sjb.Spec.RunAsUser},
+					WorkingDir:      sjb.Spec.WorkingDir,
 				},
 			},
 			RestartPolicy: corev1.RestartPolicyNever,
