@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
 	"github.com/chriskery/slurm-bridge-operator/pkg/slurm-agent"
+	"github.com/pkg/errors"
 	"strconv"
 	"strings"
 )

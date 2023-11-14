@@ -30,7 +30,7 @@ func init() {
 
 func main() {
 	configPath := flag.String("config", "", "path to a slurm-agent-agent config")
-	sock := flag.String("socket", "/var/run/slurm-agent-bridge-operator/slurm-agent-agent.sock", "unix socket to serve slurm-agent API")
+	sock := flag.String("socket", "/var/run/slurm-bridge-operator/slurm-agent-agent.sock", "unix socket to serve slurm-agent API")
 	enableHttp := flag.Bool("enableHttp", true, "http to serve slurm-agent API")
 	flag.Parse()
 

@@ -8,8 +8,8 @@ cp bin/slurm-agent /usr/local/bin/slurm-agent
 
 sudo mkdir -p /var/run/slurm-agent
 
-mkdir -p /var/run/slurm-agent-bridge-operator/
-chown -R slurm:slurm /var/run/slurm-agent-bridge-operator/
+mkdir -p /var/run/slurm-bridge-operator/
+chown -R slurm:slurm /var/run/slurm-bridge-operator/
 
 sudo sh -c 'cat  > /etc/systemd/system/slurm-agent.service <<EOF
 [Unit]

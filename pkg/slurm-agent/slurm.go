@@ -159,6 +159,7 @@ type SbatchRequest struct {
 	Array         string `protobuf:"bytes,10,opt,name=array,proto3" json:"array,omitempty"`
 	Ntasks        int64  `protobuf:"varint,11,opt,name=ntasks,proto3" json:"ntasks,omitempty"`
 	Nodes         int64  `protobuf:"varint,12,opt,name=nodes,proto3" json:"nodes,omitempty"`
+	JobName       string `protobuf:"bytes,13,opt,name=job_name,json=jobName,proto3" json:"job_name,omitempty"`
 }
 
 // SBatch submits batch job and returns job id if succeeded.
@@ -213,6 +214,12 @@ func getSbatchOpts(req *SbatchRequest) []string {
 	}
 	if req.NtasksPerNode > 0 {
 		opts = append(opts, "--ntasks-per-node="+strconv.Itoa(int(req.NtasksPerNode)))
+	}
+	if req.NtasksPerNode > 0 {
+		opts = append(opts, "--ntasks-per-node="+strconv.Itoa(int(req.NtasksPerNode)))
+	}
+	if len(req.JobName) > 0 {
+		opts = append(opts, "--job-name="+req.JobName)
 	}
 	return opts
 }

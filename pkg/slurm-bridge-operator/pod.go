@@ -3,9 +3,12 @@ package slurm_bridge_operator
 import (
 	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
 	"github.com/chriskery/slurm-bridge-operator/pkg/common"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strconv"
 )
 
@@ -16,8 +19,9 @@ func (r *SlurmBridgeJobReconciler) newPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*c
 	if err != nil {
 		return nil, errors.Wrap(err, "could not extract required resources")
 	}
+	setRequireResourceBySpec(sjb.Spec, requiredResources)
 	setDefaultRequireResource(requiredResources)
-	resourceList := r.genResourceListForPod(sjb.Spec, requiredResources)
+	resourceList := r.genResourceListForPod(requiredResources)
 
 	affinity, err := affinityForSj(sjb, *requiredResources)
 	if err != nil && !errors.Is(err, errAffinityIsNotRequired) {
@@ -25,7 +29,7 @@ func (r *SlurmBridgeJobReconciler) newPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*c
 	}
 
 	labels := r.getResourceRequestLabelsForPod(sjb.Spec)
-	return &corev1.Pod{
+	sjPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      sjb.Name,
 			Namespace: sjb.Namespace,
@@ -34,12 +38,13 @@ func (r *SlurmBridgeJobReconciler) newPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*c
 		Spec: corev1.PodSpec{
 			Affinity: affinity,
 			SecurityContext: &corev1.PodSecurityContext{
-				RunAsUser: sjb.Spec.RunAsUser,
+				RunAsUser:  sjb.Spec.RunAsUser,
+				RunAsGroup: sjb.Spec.RunAsGroup,
 			},
 			Tolerations: v1alpha1.DefaultTolerations,
 			Containers: []corev1.Container{
 				{
-					Name:            "slurm-job",
+					Name:            sjb.Name,
 					Image:           "no-image",
 					Resources:       corev1.ResourceRequirements{Requests: resourceList, Limits: resourceList},
 					Command:         []string{sjb.Spec.SbatchScript},
@@ -48,18 +53,53 @@ func (r *SlurmBridgeJobReconciler) newPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*c
 			},
 			RestartPolicy: corev1.RestartPolicyNever,
 		},
-	}, nil
+	}
+
+	// Set SlurmJob instance as the owner and slurm-bridge-operator
+	err = controllerutil.SetControllerReference(sjb, sjPod, r.Scheme)
+	if err != nil {
+		logrus.Errorf("Could not set slurm-bridge-operator reference for pod: %v", err)
+		return nil, err
+	}
+	return sjPod, nil
 }
+
+func setRequireResourceBySpec(spec v1alpha1.SlurmBridgeJobSpec, resources *v1alpha1.Resources) {
+	if spec.Nodes > 0 {
+		resources.Nodes = spec.Nodes
+	}
+	if spec.CpusPerTask > 0 {
+		resources.CpusPerTask = spec.CpusPerTask
+	}
+	if spec.MemPerCpu > 0 {
+		resources.MemPerCpu = spec.MemPerCpu
+	}
+	if spec.NtasksPerNode > 0 {
+		resources.NtasksPerNode = spec.NtasksPerNode
+	}
+	if len(spec.Array) > 0 {
+		resources.Array = spec.Array
+	}
+	if spec.Ntasks > 0 {
+		resources.Ntasks = spec.Ntasks
+	}
+}
+
+const (
+	DefaultRequireNodes       = 1
+	DefaultRequireCpusPerTask = 1
+	DefaultRequireMemPerCpu   = 1024
+)
 
 func setDefaultRequireResource(requiredResources *v1alpha1.Resources) {
 	if requiredResources.Nodes == 0 {
-		requiredResources.Nodes = 1
+		requiredResources.Nodes = DefaultRequireNodes
 	}
 	if requiredResources.CpusPerTask == 0 {
-		requiredResources.CpusPerTask = 1
+		requiredResources.CpusPerTask = DefaultRequireCpusPerTask
 	}
 	if requiredResources.MemPerCpu == 0 {
-		requiredResources.MemPerCpu = 500
+		requiredResources.MemPerCpu = DefaultRequireMemPerCpu
 	}
 }
 
@@ -97,32 +137,14 @@ func affinityForSj(sjb *v1alpha1.SlurmBridgeJob, requiredResources v1alpha1.Reso
 	}, nil
 }
 
-func (r *SlurmBridgeJobReconciler) genResourceListForPod(spec v1alpha1.SlurmBridgeJobSpec, resources *v1alpha1.Resources) corev1.ResourceList {
-	if spec.Nodes > 0 {
-		resources.Nodes = spec.Nodes
-	}
-	if spec.CpusPerTask > 0 {
-		resources.CpusPerTask = spec.CpusPerTask
-	}
-	if spec.MemPerCpu > 0 {
-		resources.MemPerCpu = spec.MemPerCpu
-	}
-	if spec.NtasksPerNode > 0 {
-		resources.NtasksPerNode = spec.NtasksPerNode
-	}
-	if len(spec.Array) > 0 {
-		resources.Array = spec.Array
-	}
-
-	if spec.Ntasks > 0 {
-		resources.Ntasks = spec.Ntasks
-	}
-
+func (r *SlurmBridgeJobReconciler) genResourceListForPod(resources *v1alpha1.Resources) corev1.ResourceList {
 	var cpuCount int64
 	if resources.Ntasks > 0 {
 		cpuCount = resources.CpusPerTask * resources.Ntasks
-	} else if resources.NtasksPerNode > 0 {
+	} else if resources.NtasksPerNode > 0 && resources.Nodes > 0 {
 		cpuCount = resources.CpusPerTask * resources.NtasksPerNode * resources.Nodes
+	} else {
+		cpuCount = resources.CpusPerTask
 	}
 
 	if len(resources.Array) > 0 {
@@ -132,7 +154,7 @@ func (r *SlurmBridgeJobReconciler) genResourceListForPod(spec v1alpha1.SlurmBrid
 
 	resourceList := corev1.ResourceList{}
 	resourceList[corev1.ResourceCPU] = resource.MustParse(strconv.Itoa(int(cpuCount)))
-	resourceList[corev1.ResourceMemory] = resource.MustParse(strconv.Itoa(int(cpuCount * resources.MemPerCpu * 1024 * 1024)))
+	resourceList[corev1.ResourceMemory] = resource.MustParse(strconv.Itoa(int(cpuCount * resources.MemPerCpu * 1024)))
 	return resourceList
 }
 

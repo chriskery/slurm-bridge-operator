@@ -63,6 +63,7 @@ func (s *SlurmVirtualKubeletProvider) newSubmitRequestForPod(pod *v1.Pod) *workl
 	submitRequest := &workload.SubmitJobRequest{
 		Uid:       string(pod.GetUID()),
 		Partition: s.vk.KubeletServer.SlurmPartition,
+		JobName:   pod.Spec.Containers[0].Name,
 	}
 	if pod.Spec.Containers[0].SecurityContext != nil && pod.Spec.Containers[0].SecurityContext.RunAsUser != nil {
 		submitRequest.RunAsUser = strconv.FormatInt(*pod.Spec.Containers[0].SecurityContext.RunAsUser, 10)

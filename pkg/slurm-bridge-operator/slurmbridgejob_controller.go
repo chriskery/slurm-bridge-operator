@@ -38,7 +38,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -290,13 +289,6 @@ func (r *SlurmBridgeJobReconciler) ReconcilePods(sjb *v1alpha1.SlurmBridgeJob) e
 	sjPod, err := r.newPodForSJ(sjb)
 	if err != nil {
 		logrus.Errorf("Could not translate slurm-agent job into pod: %v", err)
-		return err
-	}
-
-	// Set SlurmJob instance as the owner and slurm-bridge-operator
-	err = controllerutil.SetControllerReference(sjb, sjPod, r.Scheme)
-	if err != nil {
-		logrus.Errorf("Could not set slurm-bridge-operator reference for pod: %v", err)
 		return err
 	}
 

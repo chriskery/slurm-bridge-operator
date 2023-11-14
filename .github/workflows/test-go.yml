@@ -12,18 +12,18 @@ jobs:
       GOPATH: ${{ github.workspace }}/go
     defaults:
       run:
-        working-directory: ${{ env.GOPATH }}/src/github.com/chriskery/slurm-agent-bridge-operator
+        working-directory: ${{ env.GOPATH }}/src/github.com/chriskery/slurm-bridge-operator
 
     steps:
       - name: Check out code
         uses: actions/checkout@v3
         with:
-          path: ${{ env.GOPATH }}/src/github.com/chriskery/slurm-agent-bridge-operator
+          path: ${{ env.GOPATH }}/src/github.com/chriskery/slurm-bridge-operator
 
       - name: Setup Go
         uses: actions/setup-go@v3
         with:
-          go-version-file: ${{ env.GOPATH }}/src/github.com/chriskery/slurm-agent-bridge-operator/go.mod
+          go-version-file: ${{ env.GOPATH }}/src/github.com/chriskery/slurm-bridge-operator/go.mod
 
       - name: Check Go modules
         run: |

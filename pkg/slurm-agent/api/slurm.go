@@ -101,6 +101,7 @@ func (s *Slurm) SubmitJob(ctx context.Context, req *workload.SubmitJobRequest) (
 			Array:         req.Array,
 			Ntasks:        req.Ntasks,
 			Nodes:         req.Nodes,
+			JobName:       req.JobName,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "could not submit sbatch script")
