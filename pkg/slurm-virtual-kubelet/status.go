@@ -122,11 +122,11 @@ func slurmState2ContainerStatuses(pod *v1.Pod, phase v1.PodPhase, info *workload
 			jobInfo := getRelateSLurmJobInfo(container, info)
 			containerState := slurmState2ContainerState(jobInfo)
 			containerStatus := v1.ContainerStatus{
-				Name:  container.Name,
-				State: slurmState2ContainerState(jobInfo),
-				Ready: containerState.Running != nil,
-				Image: container.Name,
-				ContainerID: jobInfo.Id
+				Name:        container.Name,
+				State:       slurmState2ContainerState(jobInfo),
+				Ready:       containerState.Running != nil,
+				Image:       container.Name,
+				ContainerID: jobInfo.Id,
 			}
 			// Add to containerStatuses
 			containerStatuses = append(containerStatuses, containerStatus)
