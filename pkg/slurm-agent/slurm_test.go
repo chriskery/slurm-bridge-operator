@@ -244,6 +244,7 @@ func TestJobInfoFromScontrolResponse(t *testing.T) {
 					BatchHost:  "",
 					NumNodes:   "1-1",
 					ArrayJobID: "192",
+					Reason:     "Resources",
 				},
 				{
 					ID:         "196",
@@ -263,6 +264,7 @@ func TestJobInfoFromScontrolResponse(t *testing.T) {
 					BatchHost:  "vagrant",
 					NumNodes:   "1",
 					ArrayJobID: "192",
+					Reason:     "None",
 				},
 			},
 		},

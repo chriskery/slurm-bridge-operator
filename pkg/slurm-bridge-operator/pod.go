@@ -47,6 +47,7 @@ func (r *SlurmBridgeJobReconciler) newSizeCarPodForSJ(sjb *v1alpha1.SlurmBridgeJ
 			Containers: []corev1.Container{
 				{
 					Name:            sjb.Name,
+					Image:           "useless-image",
 					Resources:       corev1.ResourceRequirements{Requests: resourceList, Limits: resourceList},
 					Command:         []string{sjb.Spec.SbatchScript},
 					SecurityContext: &corev1.SecurityContext{RunAsUser: sjb.Spec.RunAsUser},

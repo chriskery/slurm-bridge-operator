@@ -410,6 +410,7 @@ func (r *SlurmBridgeJobReconciler) newWorkerPodForSJ(sizecarPod *corev1.Pod, sjb
 		sc := r.getWorkerPodContainerSecurityContext(jobInfo)
 		containers = append(containers, corev1.Container{
 			Name:            jobInfo.Id,
+			Image:           "useless-image",
 			SecurityContext: sc,
 			WorkingDir:      jobInfo.WorkingDir,
 		})

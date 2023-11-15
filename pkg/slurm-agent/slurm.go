@@ -429,7 +429,7 @@ func (ji *JobInfo) fillFromSlurmFields(fields map[string]string) error {
 		case runTime, timeLimit:
 			d, err := ParseDuration(sField)
 			if err != nil {
-				if err == ErrDurationIsUnlimited {
+				if errors.Is(err, ErrDurationIsUnlimited) {
 					continue
 				}
 
