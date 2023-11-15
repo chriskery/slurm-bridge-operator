@@ -28,6 +28,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -38,12 +39,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"strconv"
 	"time"
 )
 
@@ -207,21 +210,35 @@ func (r *SlurmBridgeJobReconciler) SetupWithManager(mgr ctrl.Manager, controller
 
 func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJob(sjb *v1alpha1.SlurmBridgeJob) error {
 	// Check if this Pod already exists
-	namespaceName := types.NamespacedName{Name: sjb.Name, Namespace: sjb.Namespace}
+	sizeCardNamespaceName := types.NamespacedName{Name: genPodNameByPodRole(sjb, v1alpha1.SlurmBridgeJobPodRoleSizeCar), Namespace: sjb.Namespace}
 	// Fetch the SlurmJob instance
-	sjCurrentPod := &corev1.Pod{}
-	err := r.Client.Get(context.Background(), namespaceName, sjCurrentPod)
+	sjSizeCarPod := &corev1.Pod{}
+	err := r.Client.Get(context.Background(), sizeCardNamespaceName, sjSizeCarPod)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
-		if err = r.ReconcilePods(sjb); err != nil {
+		sjSizeCarPod, err = r.ReconcileSizeCarPods(sjb)
+		if err != nil {
 			return err
 		}
 	}
 
-	if err = r.UpdateSBJStatus(sjb, sjCurrentPod); err != nil {
+	if err = r.UpdateSBJStatus(sjb, sjSizeCarPod); err != nil {
 		return err
+	}
+
+	// Check if this Pod already exists
+	workerNamespaceName := types.NamespacedName{Name: genPodNameByPodRole(sjb, v1alpha1.SlurmBridgeJobPodRoleSizeWorker), Namespace: sjb.Namespace}
+	// Fetch the SlurmJob instance
+	err = r.Client.Get(context.Background(), workerNamespaceName, &corev1.Pod{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+		if err = r.ReconcileWorkerPods(sjSizeCarPod, sjb); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -276,29 +293,29 @@ func (r *SlurmBridgeJobReconciler) UpdateSBJStatus(sjb *v1alpha1.SlurmBridgeJob,
 	return nil
 }
 
-func (r *SlurmBridgeJobReconciler) ReconcilePods(sjb *v1alpha1.SlurmBridgeJob) error {
+func (r *SlurmBridgeJobReconciler) ReconcileSizeCarPods(sjb *v1alpha1.SlurmBridgeJob) (*corev1.Pod, error) {
 	if len(sjb.Status.SubjobStatus) != 0 {
 		logrus.Info("Pod will not be created, it was already created once")
-		r.recorder.Eventf(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobFailedReason),
+		r.recorder.Eventf(sjb, corev1.EventTypeWarning, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobFailedReason),
 			"SlurmBridgeJob status change to failed, because pod not found but sub job status not empty")
 		sjb.Status.State = string(corev1.PodFailed)
-		return nil
+		return nil, nil
 	}
 
 	// Translate SlurmJob to Pod
-	sjPod, err := r.newPodForSJ(sjb)
+	sjPod, err := r.newSizeCarPodForSJ(sjb)
 	if err != nil {
 		logrus.Errorf("Could not translate slurm-agent job into pod: %v", err)
-		return err
+		return nil, err
 	}
 
 	logrus.Infof("Creating new pod %q for slurm-agent job %q", sjPod.Name, sjb.Name)
 	err = r.Create(context.Background(), sjPod)
 	if err != nil {
 		logrus.Errorf("Could not create new pod: %v", err)
-		return err
+		return nil, err
 	}
-	return nil
+	return sjPod, nil
 }
 
 func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJobResult(sjb *v1alpha1.SlurmBridgeJob) error {
@@ -343,4 +360,91 @@ func (r *SlurmBridgeJobReconciler) ReconcileSlurmBridgeJobResult(sjb *v1alpha1.S
 			"SlurmBridgeJob fetch result status change to %s", common.SlurmBridgeJobResultFetchRunningReason)
 	}
 	return nil
+}
+
+func (r *SlurmBridgeJobReconciler) ReconcileWorkerPods(sizecarPod *corev1.Pod, sjb *v1alpha1.SlurmBridgeJob) error {
+	labels := sizecarPod.GetLabels()
+	if labels == nil {
+		r.recorder.Event(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobResultFetchRunningReason),
+			"Waiting size car pod to be submitted")
+		return nil
+	}
+	_, ok := labels[common.LabelSlurmBridgeJobId]
+	if !ok {
+		r.recorder.Event(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobResultFetchRunningReason),
+			"Waiting size car pod to be submitted")
+		return nil
+	}
+	info := &workload.JobInfoResponse{}
+	err := json.Unmarshal([]byte(sizecarPod.Status.Message), info)
+	if err != nil {
+		return err
+	}
+	if len(info.Info) == 0 {
+		r.recorder.Event(sjb, corev1.EventTypeNormal, common.NewReason(v1alpha1.SlurmBridgeJobKind, common.SlurmBridgeJobResultFetchRunningReason),
+			"Waiting size car pod to be submitted")
+		return nil
+	}
+	// Translate SlurmJob to Pod
+	sjPod, err := r.newWorkerPodForSJ(sizecarPod, sjb, info)
+	if err != nil {
+		logrus.Errorf("Could not translate slurm-agent job into pod: %v", err)
+		return err
+	}
+
+	logrus.Infof("Creating new pod %q for slurm-agent job %q", sjPod.Name, sjb.Name)
+	err = r.Create(context.Background(), sjPod)
+	if err != nil {
+		logrus.Errorf("Could not create new pod: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (r *SlurmBridgeJobReconciler) newWorkerPodForSJ(sizecarPod *corev1.Pod, sjb *v1alpha1.SlurmBridgeJob, info *workload.JobInfoResponse) (*corev1.Pod, error) {
+	labels := sizecarPod.GetLabels()
+	labels[common.LabelsRole] = v1alpha1.SlurmBridgeJobPodRoleSizeWorker
+
+	var containers []corev1.Container
+	for _, jobInfo := range info.Info {
+		sc := r.getWorkerPodContainerSecurityContext(jobInfo)
+		containers = append(containers, corev1.Container{
+			Name:            jobInfo.Id,
+			SecurityContext: sc,
+			WorkingDir:      jobInfo.WorkingDir,
+		})
+	}
+
+	sjPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      genPodNameByPodRole(sjb, v1alpha1.SlurmBridgeJobPodRoleSizeWorker),
+			Namespace: sjb.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.PodSpec{
+			//skipped scheduling
+			NodeName: sizecarPod.Spec.NodeName,
+			SecurityContext: &corev1.PodSecurityContext{
+				RunAsUser:  sjb.Spec.RunAsUser,
+				RunAsGroup: sjb.Spec.RunAsGroup,
+			},
+			Tolerations:   v1alpha1.DefaultTolerations,
+			Containers:    containers,
+			RestartPolicy: corev1.RestartPolicyNever,
+		},
+	}
+
+	// Set SlurmJob instance as the owner and slurm-bridge-operator
+	err := controllerutil.SetControllerReference(sjb, sjPod, r.Scheme)
+	if err != nil {
+		logrus.Errorf("Could not set slurm-bridge-operator reference for pod: %v", err)
+		return nil, err
+	}
+	return sjPod, nil
+}
+
+func (r *SlurmBridgeJobReconciler) getWorkerPodContainerSecurityContext(info *workload.JobInfo) *corev1.SecurityContext {
+	userId := info.GetUserId()
+	parseInt, _ := strconv.ParseInt(userId, 10, 64)
+	return &corev1.SecurityContext{RunAsUser: &parseInt}
 }

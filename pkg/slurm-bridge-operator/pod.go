@@ -1,6 +1,7 @@
 package slurm_bridge_operator
 
 import (
+	"fmt"
 	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
 	"github.com/chriskery/slurm-bridge-operator/pkg/common"
 	"github.com/pkg/errors"
@@ -14,7 +15,7 @@ import (
 
 var errAffinityIsNotRequired = errors.New("affinity selectors is not required")
 
-func (r *SlurmBridgeJobReconciler) newPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*corev1.Pod, error) {
+func (r *SlurmBridgeJobReconciler) newSizeCarPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*corev1.Pod, error) {
 	requiredResources, err := extractBatchResourcesFromScript(sjb.Spec.SbatchScript)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not extract required resources")
@@ -29,9 +30,10 @@ func (r *SlurmBridgeJobReconciler) newPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*c
 	}
 
 	labels := r.getResourceRequestLabelsForPod(sjb.Spec)
+	labels[common.LabelsRole] = v1alpha1.SlurmBridgeJobPodRoleSizeCar
 	sjPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      sjb.Name,
+			Name:      genPodNameByPodRole(sjb, v1alpha1.SlurmBridgeJobPodRoleSizeCar),
 			Namespace: sjb.Namespace,
 			Labels:    labels,
 		},
@@ -45,7 +47,6 @@ func (r *SlurmBridgeJobReconciler) newPodForSJ(sjb *v1alpha1.SlurmBridgeJob) (*c
 			Containers: []corev1.Container{
 				{
 					Name:            sjb.Name,
-					Image:           "no-image",
 					Resources:       corev1.ResourceRequirements{Requests: resourceList, Limits: resourceList},
 					Command:         []string{sjb.Spec.SbatchScript},
 					SecurityContext: &corev1.SecurityContext{RunAsUser: sjb.Spec.RunAsUser},
@@ -182,4 +183,8 @@ func (r *SlurmBridgeJobReconciler) getResourceRequestLabelsForPod(spec v1alpha1.
 	}
 
 	return labels
+}
+
+func genPodNameByPodRole(sbj *v1alpha1.SlurmBridgeJob, podRole v1alpha1.SlurmBridgeJobPodRole) string {
+	return fmt.Sprintf("%s-%s", sbj.Name, podRole)
 }

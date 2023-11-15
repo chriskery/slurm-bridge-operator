@@ -8,3 +8,10 @@ type JobResult struct {
 	// After result-fetcher collection all job generated files can be found in Mount/<SlurmJob.Name> directory.
 	Volume v1.Volume `json:"volume,omitempty"`
 }
+
+type SlurmBridgeJobPodRole string
+
+const (
+	SlurmBridgeJobPodRoleSizeCar    = "sizecar"
+	SlurmBridgeJobPodRoleSizeWorker = "worker"
+)

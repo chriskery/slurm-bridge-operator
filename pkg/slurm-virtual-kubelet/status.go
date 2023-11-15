@@ -2,6 +2,8 @@ package slurm_virtual_kubelet
 
 import (
 	"fmt"
+	"github.com/chriskery/slurm-bridge-operator/apis/kubecluster.org/v1alpha1"
+	"github.com/chriskery/slurm-bridge-operator/pkg/common"
 	"github.com/chriskery/slurm-bridge-operator/pkg/workload"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	v1 "k8s.io/api/core/v1"
@@ -102,22 +104,47 @@ func getMinStartTimte(jobInfo *workload.JobInfoResponse) *timestamppb.Timestamp 
 
 func slurmState2ContainerStatuses(pod *v1.Pod, phase v1.PodPhase, info *workload.JobInfoResponse) []v1.ContainerStatus {
 	containerStatuses := make([]v1.ContainerStatus, 0, len(pod.Spec.Containers))
-	for i, c := range pod.Spec.Containers {
+
+	podRole := pod.Labels[common.LabelsRole]
+	if podRole == v1alpha1.SlurmBridgeJobPodRoleSizeCar {
+		container := pod.Spec.Containers[0]
+		jobInfo := info.Info[0]
 		containerStatus := v1.ContainerStatus{
-			Name:  c.Name,
-			State: slurmState2ContainerState(info.Info[i]),
+			Name:  container.Name,
+			State: slurmState2ContainerState(jobInfo),
 			Ready: phase == v1.PodRunning,
-			Image: c.Image,
-		}
-		if info.Info[i].ArrayId != "" {
-			containerStatus.ContainerID = info.Info[i].ArrayId
-		} else {
-			containerStatus.ContainerID = info.Info[i].Id
+			Image: container.Image,
 		}
 		// Add to containerStatuses
 		containerStatuses = append(containerStatuses, containerStatus)
+	} else if podRole == v1alpha1.SlurmBridgeJobPodRoleSizeWorker {
+		for _, container := range pod.Spec.Containers {
+			jobInfo := getRelateSLurmJobInfo(container, info)
+			containerState := slurmState2ContainerState(jobInfo)
+			containerStatus := v1.ContainerStatus{
+				Name:  container.Name,
+				State: slurmState2ContainerState(jobInfo),
+				Ready: containerState.Running != nil,
+				Image: container.Name,
+				ContainerID: jobInfo.Id
+			}
+			// Add to containerStatuses
+			containerStatuses = append(containerStatuses, containerStatus)
+		}
+	} else {
+		klog.Warningf("Invalid container for pod %s/%s, skipp status update", pod.GetNamespace(), pod.GetName())
 	}
+
 	return containerStatuses
+}
+
+func getRelateSLurmJobInfo(container v1.Container, info *workload.JobInfoResponse) *workload.JobInfo {
+	for _, jobInfo := range info.Info {
+		if jobInfo.Id == container.Name {
+			return jobInfo
+		}
+	}
+	return nil
 }
 
 func slurmState2ContainerState(info *workload.JobInfo) v1.ContainerState {

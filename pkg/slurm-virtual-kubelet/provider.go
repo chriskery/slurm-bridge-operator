@@ -128,10 +128,16 @@ func needReconcile(pod *v1.Pod) bool {
 	if pod != nil && pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 && pod.OwnerReferences[0].Kind == "DaemonSet" {
 		return false
 	}
+
 	_, ok := pod.Labels[common.LabelSlurmBridgeJobId]
 	if ok {
 		return false
 	}
+
+	if pod.Labels[common.LabelsRole] != v1alpha1.SlurmBridgeJobPodRoleSizeCar {
+		return false
+	}
+
 	return true
 }
 
@@ -208,6 +214,7 @@ func (s *SlurmVirtualKubeletProvider) GetPodStatus(ctx context.Context, namespac
 	if err != nil {
 		return nil, err
 	}
+
 	return convertJobInfo2PodStatus(pod, jobInfo)
 }
 
@@ -250,25 +257,33 @@ func (s *SlurmVirtualKubeletProvider) GetContainerLogs(
 		return nil, errors.Errorf("Pod %s/%s not found", namespace, podName)
 	}
 
-	jobInfo, err := s.getJobInfo(pod)
+	jobInfos, err := s.getJobInfo(pod)
 	if err != nil {
 		return nil, err
 	}
-	if len(jobInfo.Info) == 0 {
+	if len(jobInfos.Info) == 0 {
 		return nil, errors.Errorf("Invalid jobInfo")
 	}
 
-	var logFiles = []string{jobInfo.Info[0].StdOut}
-	if jobInfo.Info[0].StdOut != jobInfo.Info[0].StdErr {
-		logFiles = append(logFiles, jobInfo.Info[0].StdErr)
+	jobInfo := jobInfos.Info[0]
+	for _, info := range jobInfos.Info {
+		if info.GetId() == info.Id {
+			jobInfo = info
+			break
+		}
 	}
 
-	if opts.Follow && !isSlurmJobFinished(jobInfo.Info[0].Status) {
+	var logFiles = []string{jobInfo.StdOut}
+	if jobInfo.StdOut != jobInfo.StdErr {
+		logFiles = append(logFiles, jobInfo.StdErr)
+	}
+
+	if opts.Follow && !isSlurmJobFinished(jobInfo.Status) {
 		openReq, err := s.vk.SlurmClient.TailFile(ctx)
 		if err != nil {
 			return nil, err
 		}
-		err = openReq.Send(&workload.TailFileRequest{Path: jobInfo.Info[0].StdOut})
+		err = openReq.Send(&workload.TailFileRequest{Path: jobInfo.StdOut})
 		if err != nil {
 			return nil, err
 		}
